@@ -1,0 +1,28 @@
+name: kms
+channels:
+  - conda-forge
+dependencies:
+  - bzip2=1.0.8=hd037594_9
+  - ca-certificates=2026.5.20=hbd8a1cb_0
+  - libexpat=2.8.1=hf6b4638_0
+  - libffi=3.5.2=hcf2aa1b_0
+  - liblzma=5.8.3=h8088a28_0
+  - libsqlite=3.53.1=h1b79a29_0
+  - libzlib=1.3.2=h8088a28_2
+  - ncurses=6.6=h1d4f5a5_0
+  - openssl=3.6.2=hd24854e_0
+  - packaging=26.2=pyhc364b38_0
+  - pip=26.1.1=pyh8b19718_0
+  - python=3.11.15=h8561d8f_0_cpython
+  - readline=8.3=h46df422_0
+  - setuptools=82.0.1=pyh332efcf_0
+  - tk=8.6.13=h010d191_3
+  - tzdata=2025c=hc9c84f9_1
+  - wheel=0.47.0=pyhd8ed1ab_0
+  - pip:
+      - numpy==2.4.6
+      - polyscope==2.6.1
+      - pypdf==6.12.2
+      - pytest==8.4.1
+      - typing-extensions==4.15.0
+prefix: /Users/sean/miniforge3/envs/kms

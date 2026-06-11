@@ -1,0 +1,9 @@
+.pytest_cache
+.vscode
+*.pdf
+__pycache__
+*.egg-info
+.DS_Store
+out
+*.ini
+build
