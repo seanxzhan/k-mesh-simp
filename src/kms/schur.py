@@ -310,11 +310,11 @@ def edge_cost_full(
     K_Bv = K_moved[np.ix_(dofs_B, dofs_v)]
     K_BB = K_moved[np.ix_(dofs_B, dofs_B)]
 
-    det = np.linalg.det(K_vv)
-    if abs(det) < 1e-30:
+    # Use pseudoinverse for robustness (K_vv may be singular after collapses)
+    svd_vals = np.linalg.svd(K_vv, compute_uv=False)
+    if svd_vals.max() < 1e-20:
         return 0.0
-
-    K_vv_inv = np.linalg.inv(K_vv)
+    K_vv_inv = np.linalg.pinv(K_vv, rcond=1e-12)
     K_schur = K_BB - K_Bv @ K_vv_inv @ K_vB
 
     # --- Step 3: Assemble K' on collapsed topology ---
