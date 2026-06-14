@@ -127,21 +127,18 @@ def test_skinning_weights_nonneg():
     assert np.all(W.toarray() >= -1e-12)
 
 
-def test_skinning_weights_surviving_verts_identity():
-    """Surviving (coarse) vertices should have weight 1 on themselves."""
+def test_skinning_weights_all_assigned():
+    """Every fine vertex should map to exactly one coarse vertex."""
     mesh = make_icosphere(1)
     result, W = simplify_stiffness_quadric(
         mesh, target_verts=20, mode="stiffness", compute_skinning_weights=True
     )
-    # Find which fine vertices survived (they should have a single 1.0 in their row)
     W_dense = W.toarray()
-    # Surviving verts have exactly one nonzero entry = 1.0
-    n_surviving = 0
+    # Every row should have exactly one 1.0 (parent-based assignment)
     for i in range(42):
         row = W_dense[i]
-        if np.sum(row > 0.99) == 1 and np.abs(np.max(row) - 1.0) < 1e-10:
-            n_surviving += 1
-    assert n_surviving == 20  # exactly the coarse vertices
+        assert np.sum(row > 0.5) == 1, f"Vertex {i} has {np.sum(row > 0.5)} assignments"
+        assert np.abs(row.sum() - 1.0) < 1e-10, f"Vertex {i} row sum: {row.sum()}"
 
 
 def test_skinning_weights_reconstruct_positions():
