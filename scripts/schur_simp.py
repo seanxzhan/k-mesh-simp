@@ -86,7 +86,7 @@ def main():
     )
 
     # --- Schur full ---
-    do_full = True
+    do_full = False
     if do_full:
         t0 = time.time()
         result_full = simplify_schur(
