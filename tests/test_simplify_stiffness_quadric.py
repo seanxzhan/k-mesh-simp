@@ -127,18 +127,15 @@ def test_skinning_weights_nonneg():
     assert np.all(W.toarray() >= -1e-12)
 
 
-def test_skinning_weights_all_assigned():
-    """Every fine vertex should map to exactly one coarse vertex."""
+def test_skinning_weights_rows_sum_to_one():
+    """Every fine vertex's weights should sum to 1 (partition of unity)."""
     mesh = make_icosphere(1)
     result, W = simplify_stiffness_quadric(
         mesh, target_verts=20, mode="stiffness", compute_skinning_weights=True
     )
     W_dense = W.toarray()
-    # Every row should have exactly one 1.0 (parent-based assignment)
-    for i in range(42):
-        row = W_dense[i]
-        assert np.sum(row > 0.5) == 1, f"Vertex {i} has {np.sum(row > 0.5)} assignments"
-        assert np.abs(row.sum() - 1.0) < 1e-10, f"Vertex {i} row sum: {row.sum()}"
+    row_sums = W_dense.sum(axis=1)
+    np.testing.assert_allclose(row_sums, np.ones(42), atol=1e-6)
 
 
 def test_skinning_weights_reconstruct_positions():

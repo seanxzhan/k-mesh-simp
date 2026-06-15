@@ -17,49 +17,97 @@ from kms.stiffness import shell_stiffness
 from kms.stiffness_quadric import StiffnessQuadric, build_stiffness_quadrics, _extract_block
 
 
-def _build_skinning_weights(parent: np.ndarray, adj: MeshAdjacency, n: int) -> sparse.csc_matrix:
-    """Build (n_fine, n_coarse) skinning weight matrix from parent tracking.
+def _compute_schur_weights_for_vertex(
+    K: sparse.spmatrix, v: int, neighbors: list[int],
+) -> dict[int, float]:
+    """Compute Schur-derived scalar skinning weights for vertex v.
 
-    Each fine vertex follows its ultimate ancestor in the collapse chain.
-    Resolves transitive parents: if parent[v] = u and parent[u] = w (w survived),
-    then v maps to w's column in the coarse mesh.
+    From the Schur formula: u_v = -K_vv^{-1} K_vB u_B
+    The 3x3 coupling K_vv^{-1} @ K_vj gives a matrix weight per neighbor j.
+    We reduce to scalar via Frobenius norm and normalize.
+
+    Returns dict mapping neighbor_id -> scalar weight (summing to 1).
     """
-    # Resolve transitive parents (path compression)
-    root = parent.copy()
-    for _ in range(n):  # worst case: chain of length n
-        changed = False
-        for i in range(n):
-            if root[root[i]] != root[i]:
-                root[i] = root[root[i]]
-                changed = True
-        if not changed:
+    dofs_v = [3*v, 3*v+1, 3*v+2]
+    K_vv = _extract_block(K, dofs_v, dofs_v)
+
+    svd_vals = np.linalg.svd(K_vv, compute_uv=False)
+    if svd_vals.max() < 1e-20:
+        # K_vv is zero — fallback to uniform weights
+        if neighbors:
+            w = 1.0 / len(neighbors)
+            return {nb: w for nb in neighbors}
+        return {}
+
+    K_vv_inv = np.linalg.pinv(K_vv, rcond=1e-12)
+
+    weights = {}
+    total = 0.0
+    for nb in neighbors:
+        dofs_nb = [3*nb, 3*nb+1, 3*nb+2]
+        K_v_nb = _extract_block(K, dofs_v, dofs_nb)
+        # Schur coupling magnitude
+        blend = K_vv_inv @ K_v_nb
+        w = np.linalg.norm(blend, 'fro')
+        weights[nb] = w
+        total += w
+
+    if total > 1e-30:
+        for nb in weights:
+            weights[nb] /= total
+    elif neighbors:
+        w = 1.0 / len(neighbors)
+        weights = {nb: w for nb in neighbors}
+
+    return weights
+
+
+def _finalize_skinning_weights(
+    W: sparse.lil_matrix, adj: MeshAdjacency, n: int,
+    elimination_order: list[tuple[int, dict[int, float]]],
+) -> sparse.csc_matrix:
+    """Finalize (n_fine, n_coarse) skinning weights by propagating eliminated columns.
+
+    Problem: W[i, j] may reference an eliminated vertex j (its column will be dropped).
+    Solution: process eliminated vertices in reverse order. For each eliminated v with
+    Schur weights {nb: w_nb}, replace column v in W with the weighted sum of neighbor columns.
+
+    This is equivalent to: W_final = W @ S where S propagates eliminated columns forward.
+    """
+    active = np.where(~adj._deleted_verts)[0]
+    active_set = set(active.tolist())
+
+    # Build lookup: for each eliminated vertex, its Schur weights
+    elim_weights = {v: sw for v, sw in elimination_order}
+
+    # Iteratively propagate: redistribute weight from eliminated columns
+    # to their Schur neighbors until all weight lands in surviving columns.
+    for iteration in range(len(elimination_order) + 1):
+        # Find any remaining weight in eliminated columns
+        has_eliminated_weight = False
+        for v in elim_weights:
+            col_v = W[:, v].toarray().ravel()
+            nonzero_rows = np.where(np.abs(col_v) > 1e-15)[0]
+            if len(nonzero_rows) == 0:
+                continue
+            has_eliminated_weight = True
+            schur_weights = elim_weights[v]
+            for i in nonzero_rows:
+                w_iv = col_v[i]
+                W[i, v] = 0
+                for nb, w_nb in schur_weights.items():
+                    W[i, nb] = W[i, nb] + w_iv * w_nb
+        if not has_eliminated_weight:
             break
 
-    # Map surviving vertices to coarse indices
-    active = np.where(~adj._deleted_verts)[0]
-    n_coarse = len(active)
-    coarse_idx = np.full(n, -1, dtype=np.int64)
-    coarse_idx[active] = np.arange(n_coarse)
-
-    # Build sparse weight matrix: W[i, coarse_idx[root[i]]] = 1
-    rows = []
-    cols = []
-    for i in range(n):
-        r = root[i]
-        ci = coarse_idx[r]
-        if ci >= 0:
-            rows.append(i)
-            cols.append(ci)
-
-    data = np.ones(len(rows))
-    W = sparse.csc_matrix((data, (rows, cols)), shape=(n, n_coarse))
-    return W
+    return W[:, active].tocsc()
 
 
 def simplify_stiffness_quadric(
     mesh: TriMesh,
     target_verts: int,
     mode: str = "combined",
+    schur_mode: str = "additive",
     lam: float | None = None,
     E: float = 1.0,
     nu: float = 0.3,
@@ -76,6 +124,8 @@ def simplify_stiffness_quadric(
         target_verts: Target number of vertices
         mode: "stiffness" for pure stiffness quadric (Approach 2),
               "combined" for QEM + stiffness quadric (Approach 3)
+        schur_mode: "additive" for Q_u + Q_v + correction (heuristic, stable),
+                    "schur" for K'_ii = K_ii - K_ij K_jj⁻¹ K_ji (physically correct)
         lam: Weight for stiffness term in combined mode.
              If None, auto-calibrated so median stiffness cost ≈ median QEM cost.
         E: Young's modulus
@@ -93,11 +143,11 @@ def simplify_stiffness_quadric(
     """
     if mode == "stiffness":
         return _simplify_stiffness_only(mesh, target_verts, E, nu, thickness,
-                                        compute_skinning_weights, verbose)
+                                        schur_mode, compute_skinning_weights, verbose)
     elif mode == "combined":
         return _simplify_combined(mesh, target_verts, lam, E, nu, thickness,
                                   use_line_quadric, line_quadric_weight,
-                                  compute_skinning_weights, verbose)
+                                  schur_mode, compute_skinning_weights, verbose)
     else:
         raise ValueError(f"Unknown mode: {mode!r}. Use 'stiffness' or 'combined'.")
 
@@ -108,6 +158,7 @@ def _simplify_stiffness_only(
     E: float,
     nu: float,
     thickness: float,
+    schur_mode: str,
     compute_skinning_weights: bool,
     verbose: bool,
 ) -> TriMesh | tuple[TriMesh, sparse.csc_matrix]:
@@ -119,9 +170,11 @@ def _simplify_stiffness_only(
     K, _, _ = shell_stiffness(mesh, E, nu, thickness)
     vertex_quadrics = build_stiffness_quadrics(K, mesh)
 
-    # Parent tracking for skinning weights: parent[i] = which original vertex
-    # fine vertex i will ultimately follow. Starts as self.
-    parent = np.arange(n) if compute_skinning_weights else None
+    # W tracks Schur-derived prolongation weights.
+    # W[i, j] = how much fine vertex i depends on original vertex j's displacement.
+    # Starts as identity; when v is eliminated, its row becomes a blend of neighbors' rows.
+    W = sparse.eye(n, format="lil") if compute_skinning_weights else None
+    elimination_order: list[tuple[int, dict[int, float]]] = []
 
     if verbose:
         print(f"Setup: {n} verts, mode=stiffness_quadric")
@@ -176,11 +229,22 @@ def _simplify_stiffness_only(
         if not adj.is_collapsible(u, v):
             continue
 
+        # BEFORE collapse: compute Schur-derived skinning weights for v
+        if W is not None:
+            neighbors_v = [nb for nb in adj.vert_neighbors[v] if adj.is_valid_vertex(nb)]
+            schur_w = _compute_schur_weights_for_vertex(K, v, neighbors_v)
+            elimination_order.append((v, schur_w))
+            # Set v's row to the blend (references original vertex columns)
+            new_row = sparse.lil_matrix((1, n))
+            for nb, w_nb in schur_w.items():
+                new_row[0, nb] = w_nb  # direct column reference, not W[nb,:]
+            W[v, :] = new_row
+
         # Collapse
         adj.collapse_edge(u, v, pos)
         n_collapsed += 1
 
-        # Accumulate quadric: add v's quadric + Schur correction
+        # Compute Schur correction blocks
         dofs_u = [3*u, 3*u+1, 3*u+2]
         dofs_v = [3*v, 3*v+1, 3*v+2]
         K_vv = _extract_block(K, dofs_v, dofs_v)
@@ -192,18 +256,22 @@ def _simplify_stiffness_only(
             K_vv_inv = np.linalg.pinv(K_vv, rcond=1e-12)
             correction = K_uv @ K_vv_inv @ K_vu
         else:
-            K_vv_inv = np.zeros((3, 3))
             correction = np.zeros((3, 3))
 
-        # Merged quadric = Q_u + Q_v with Schur correction on A
-        merged = vertex_quadrics[u] + vertex_quadrics[v]
-        merged.A = merged.A + correction
-        vertex_quadrics[u] = merged
-        del vertex_quadrics[v]
+        if schur_mode == "additive":
+            # Q_u + Q_v + correction as proper quadric centered at pos
+            correction_quadric = StiffnessQuadric.from_stiffness_block(correction, pos)
+            merged = vertex_quadrics[u] + vertex_quadrics[v]
+            merged.A = merged.A + correction_quadric.A
+            merged.b = merged.b + correction_quadric.b
+            merged.c = merged.c + correction_quadric.c
+            vertex_quadrics[u] = merged
+        else:
+            # Pure Schur: K'_ii = K_ii - K_ij K_jj⁻¹ K_ji
+            K_ii_new = vertex_quadrics[u].A - correction
+            vertex_quadrics[u] = StiffnessQuadric.from_stiffness_block(K_ii_new, pos)
 
-        # Update parent: v's parent becomes u (v follows u)
-        if parent is not None:
-            parent[v] = u
+        del vertex_quadrics[v]
 
         # Update timestamps
         current_ts += 1
@@ -224,8 +292,8 @@ def _simplify_stiffness_only(
 
     result = adj.to_trimesh()
 
-    if parent is not None:
-        W_out = _build_skinning_weights(parent, adj, n)
+    if W is not None:
+        W_out = _finalize_skinning_weights(W, adj, n, elimination_order)
         return result, W_out
     return result
 
@@ -239,6 +307,7 @@ def _simplify_combined(
     thickness: float,
     use_line_quadric: bool,
     line_quadric_weight: float,
+    schur_mode: str,
     compute_skinning_weights: bool,
     verbose: bool,
 ) -> TriMesh | tuple[TriMesh, sparse.csc_matrix]:
@@ -257,8 +326,9 @@ def _simplify_combined(
     K, _, _ = shell_stiffness(mesh, E, nu, thickness)
     stiffness_quadrics = build_stiffness_quadrics(K, mesh)
 
-    # Parent tracking for skinning weights
-    parent = np.arange(n) if compute_skinning_weights else None
+    # W tracks Schur-derived prolongation weights
+    W = sparse.eye(n, format="lil") if compute_skinning_weights else None
+    elimination_order: list[tuple[int, dict[int, float]]] = []
 
     # Build QEM plane quadrics
     areas = compute_face_areas(mesh)
@@ -308,7 +378,6 @@ def _simplify_combined(
             print(f"  Auto-calibrated lambda: {lam:.4e} (median QEM={med_qem:.2e}, median stiff={med_stiff:.2e})")
 
     # Build combined quadrics: Q_combined = Q_plane + lambda * Q_stiffness
-    # Both are (A, b, c) forms — we store as a single Quadric with summed components
     vertex_quadrics: dict[int, Quadric] = {}
     for vi in range(n):
         sq = stiffness_quadrics[vi]
@@ -372,13 +441,21 @@ def _simplify_combined(
         if not adj.is_collapsible(u, v):
             continue
 
+        # BEFORE collapse: compute Schur weights for v from its current neighbors
+        if W is not None:
+            neighbors_v = [nb for nb in adj.vert_neighbors[v] if adj.is_valid_vertex(nb)]
+            schur_w = _compute_schur_weights_for_vertex(K, v, neighbors_v)
+            elimination_order.append((v, schur_w))
+            new_row = sparse.lil_matrix((1, n))
+            for nb, w_nb in schur_w.items():
+                new_row[0, nb] = w_nb
+            W[v, :] = new_row
+
         # Collapse
         adj.collapse_edge(u, v, pos)
         n_collapsed += 1
 
-        # Accumulate: Q_w = Q_u + Q_v
-        # The plane quadric part adds normally.
-        # The stiffness part also adds (with Schur correction on the A matrix).
+        # Compute Schur correction
         dofs_u = [3*u, 3*u+1, 3*u+2]
         dofs_v = [3*v, 3*v+1, 3*v+2]
         K_vv = _extract_block(K, dofs_v, dofs_v)
@@ -390,17 +467,33 @@ def _simplify_combined(
             K_vv_inv = np.linalg.pinv(K_vv, rcond=1e-12)
             correction = K_uv @ K_vv_inv @ K_vu
         else:
-            K_vv_inv = np.zeros((3, 3))
             correction = np.zeros((3, 3))
 
-        merged = Quadric.edge_quadric(vertex_quadrics[u], vertex_quadrics[v])
-        merged.A = merged.A + lam * correction
-        vertex_quadrics[u] = merged
-        del vertex_quadrics[v]
+        if schur_mode == "additive":
+            # Q_u + Q_v + λ·correction as proper quadric
+            corr_A = lam * correction
+            corr_b = -corr_A @ pos
+            corr_c = float(pos @ corr_A @ pos)
+            merged = Quadric.edge_quadric(vertex_quadrics[u], vertex_quadrics[v])
+            merged.A = merged.A + corr_A
+            merged.b = merged.b + corr_b
+            merged.c = merged.c + corr_c
+            vertex_quadrics[u] = merged
+        else:
+            # QEM accumulates additively, stiffness uses pure Schur (subtract)
+            qem_part = Quadric.edge_quadric(vertex_quadrics[u], vertex_quadrics[v])
+            # Extract current stiffness A (subtract QEM contribution to isolate stiffness)
+            # Approximation: treat the stiffness portion as the correction-affected part
+            K_ii_new = vertex_quadrics[u].A - correction
+            sq = StiffnessQuadric.from_stiffness_block(lam * K_ii_new, pos)
+            merged = Quadric(
+                qem_part.A - lam * vertex_quadrics[u].A + sq.A,  # replace old stiffness with new
+                qem_part.b - lam * vertex_quadrics[u].b + sq.b,
+                qem_part.c - lam * vertex_quadrics[u].c + sq.c,
+            )
+            vertex_quadrics[u] = merged
 
-        # Update parent: v follows u
-        if parent is not None:
-            parent[v] = u
+        del vertex_quadrics[v]
 
         # Update timestamps
         current_ts += 1
@@ -421,7 +514,7 @@ def _simplify_combined(
 
     result = adj.to_trimesh()
 
-    if parent is not None:
-        W_out = _build_skinning_weights(parent, adj, n)
+    if W is not None:
+        W_out = _finalize_skinning_weights(W, adj, n, elimination_order)
         return result, W_out
     return result
