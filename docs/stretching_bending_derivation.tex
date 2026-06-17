@@ -1,0 +1,265 @@
+\subsection{CST Element Stiffness Derivation}
+
+Given a triangle in $\mathbb{R}^3$ with vertices $\mathbf{p}_0, \mathbf{p}_1, \mathbf{p}_2$, we first project into a local tangent frame, then derive the strain-displacement matrix $B$.
+
+\paragraph{Projection to local coordinates.}
+Construct an orthonormal frame $(\mathbf{e}_1, \mathbf{e}_2, \mathbf{n})$ aligned with the triangle:
+\begin{align}
+  \mathbf{e}_1 &= \frac{\mathbf{p}_1 - \mathbf{p}_0}{\|\mathbf{p}_1 - \mathbf{p}_0\|}, \\
+  \mathbf{n} &= \frac{(\mathbf{p}_1 - \mathbf{p}_0) \times (\mathbf{p}_2 - \mathbf{p}_0)}{\|(\mathbf{p}_1 - \mathbf{p}_0) \times (\mathbf{p}_2 - \mathbf{p}_0)\|}, \\
+  \mathbf{e}_2 &= \mathbf{n} \times \mathbf{e}_1.
+\end{align}
+Projecting each vertex into the $(\mathbf{e}_1, \mathbf{e}_2)$ plane with $\mathbf{p}_0$ as origin:
+\begin{equation}
+  p_0 = (0,\, 0), \qquad
+  p_1 = (x_1,\, 0), \qquad
+  p_2 = (x_2,\, y_2),
+\end{equation}
+where
+\begin{equation}
+  x_1 = (\mathbf{p}_1 - \mathbf{p}_0) \cdot \mathbf{e}_1, \qquad
+  x_2 = (\mathbf{p}_2 - \mathbf{p}_0) \cdot \mathbf{e}_1, \qquad
+  y_2 = (\mathbf{p}_2 - \mathbf{p}_0) \cdot \mathbf{e}_2.
+\end{equation}
+Note that $p_1$ lies on the $\mathbf{e}_1$ axis by construction (its $\mathbf{e}_2$-component is zero). The triangle area is $A = \tfrac{1}{2}\, x_1\, y_2$.
+
+We now derive the element stiffness in these local 2D coordinates.
+
+\paragraph{Shape functions.}
+The CST uses linear (barycentric) shape functions on the reference triangle parameterized by $(\xi, \eta) \in \{(\xi,\eta) : \xi \geq 0,\, \eta \geq 0,\, \xi + \eta \leq 1\}$:
+\begin{equation}
+  N_0(\xi, \eta) = 1 - \xi - \eta, \quad
+  N_1(\xi, \eta) = \xi, \quad
+  N_2(\xi, \eta) = \eta.
+\end{equation}
+
+\paragraph{Displacement interpolation.}
+The in-plane displacement field $(u, v)$ is interpolated as:
+\begin{equation}
+  u(\xi,\eta) = \sum_{i=0}^{2} N_i\, u_i, \qquad
+  v(\xi,\eta) = \sum_{i=0}^{2} N_i\, v_i.
+\end{equation}
+
+\paragraph{Isoparametric position mapping.}
+The same shape functions map reference coordinates to physical coordinates:
+\begin{align}
+  x(\xi,\eta) &= N_0 \cdot 0 + N_1 \cdot x_1 + N_2 \cdot x_2 = \xi\, x_1 + \eta\, x_2, \\
+  y(\xi,\eta) &= N_0 \cdot 0 + N_1 \cdot 0 + N_2 \cdot y_2 = \eta\, y_2.
+\end{align}
+
+\paragraph{Jacobian.}
+The Jacobian of the position mapping is:
+\begin{equation}
+  J = \begin{bmatrix}
+    \partial x / \partial \xi & \partial x / \partial \eta \\
+    \partial y / \partial \xi & \partial y / \partial \eta
+  \end{bmatrix}
+  = \begin{bmatrix}
+    x_1 & x_2 \\
+    0   & y_2
+  \end{bmatrix}, \qquad
+  \det J = x_1\, y_2.
+\end{equation}
+
+\paragraph{Parametric to physical derivatives.}
+By the chain rule, parametric and physical partial derivatives are related by:
+\begin{equation}
+  \begin{bmatrix} \partial f / \partial \xi \\ \partial f / \partial \eta \end{bmatrix}
+  = J^T
+  \begin{bmatrix} \partial f / \partial x \\ \partial f / \partial y \end{bmatrix},
+\end{equation}
+which inverts to give the physical derivatives:
+\begin{equation}\label{eq:phys-deriv}
+  \begin{bmatrix} \partial f / \partial x \\ \partial f / \partial y \end{bmatrix}
+  = J^{-T}
+  \begin{bmatrix} \partial f / \partial \xi \\ \partial f / \partial \eta \end{bmatrix},
+  \qquad
+  J^{-T} = \frac{1}{x_1 y_2}
+  \begin{bmatrix}
+    y_2  & 0   \\
+    -x_2 & x_1
+  \end{bmatrix}.
+\end{equation}
+
+\paragraph{Shape function derivatives.}
+Applying~\eqref{eq:phys-deriv} to each shape function:
+\begin{equation}
+  \begin{aligned}
+    \frac{\partial N_0}{\partial x} &= \frac{-y_2}{\det J}, &\quad
+    \frac{\partial N_0}{\partial y} &= \frac{x_2 - x_1}{\det J}, \\[4pt]
+    \frac{\partial N_1}{\partial x} &= \frac{y_2}{\det J}, &\quad
+    \frac{\partial N_1}{\partial y} &= \frac{-x_2}{\det J}, \\[4pt]
+    \frac{\partial N_2}{\partial x} &= 0, &\quad
+    \frac{\partial N_2}{\partial y} &= \frac{x_1}{\det J}.
+  \end{aligned}
+\end{equation}
+Since the shape functions are linear, all derivatives are constants---hence strain is constant over the element.
+
+\paragraph{Strain-displacement matrix.}
+Under plane stress, the strain vector $\boldsymbol{\varepsilon} = [\varepsilon_{xx},\, \varepsilon_{yy},\, \gamma_{xy}]^T$ relates to the nodal displacement vector $\mathbf{d} = [u_0, v_0, u_1, v_1, u_2, v_2]^T$ via $\boldsymbol{\varepsilon} = B\,\mathbf{d}$, where:
+\begin{equation}
+  B = \frac{1}{\det J}
+  \begin{bmatrix}
+    \dfrac{\partial N_0}{\partial x} & 0 &
+    \dfrac{\partial N_1}{\partial x} & 0 &
+    \dfrac{\partial N_2}{\partial x} & 0 \\[6pt]
+    0 & \dfrac{\partial N_0}{\partial y} &
+    0 & \dfrac{\partial N_1}{\partial y} &
+    0 & \dfrac{\partial N_2}{\partial y} \\[6pt]
+    \dfrac{\partial N_0}{\partial y} & \dfrac{\partial N_0}{\partial x} &
+    \dfrac{\partial N_1}{\partial y} & \dfrac{\partial N_1}{\partial x} &
+    \dfrac{\partial N_2}{\partial y} & \dfrac{\partial N_2}{\partial x}
+  \end{bmatrix}.
+\end{equation}
+Substituting the derivatives:
+\begin{equation}\label{eq:B-explicit}
+  B = \frac{1}{\det J}
+  \begin{bmatrix}
+    -y_2    & 0        & y_2  & 0    & 0   & 0  \\
+    0       & x_2-x_1  & 0    & -x_2 & 0   & x_1 \\
+    x_2-x_1 & -y_2     & -x_2 & y_2  & x_1 & 0
+  \end{bmatrix}.
+\end{equation}
+
+\paragraph{Constitutive matrix (plane stress).}
+For isotropic linear elasticity:
+\begin{equation}
+  D = \frac{E}{1 - \nu^2}
+  \begin{bmatrix}
+    1   & \nu & 0 \\
+    \nu & 1   & 0 \\
+    0   & 0   & (1-\nu)/2
+  \end{bmatrix}.
+\end{equation}
+
+\paragraph{Element stiffness.}
+The strain energy in the element is:
+\begin{equation}
+  W = \frac{1}{2} \int_\Omega \boldsymbol{\varepsilon}^T D\, \boldsymbol{\varepsilon}\; t\, dA
+    = \frac{1}{2}\, \mathbf{d}^T \underbrace{\left( A \cdot t \cdot B^T D\, B \right)}_{K_e^{\text{local}}}\, \mathbf{d},
+\end{equation}
+where $A$ is the triangle area and $t$ is the shell thickness. Since $B$ is constant, the integral reduces to multiplication by area:
+\begin{equation}
+  K_e^{\text{local}} = A \cdot t \cdot B^T D\, B \quad \in \mathbb{R}^{6 \times 6}.
+\end{equation}
+
+\paragraph{Rotation to 3D.}
+Each node has 3~DOFs in global space but only 2 in the local tangent plane. Let $R = [\mathbf{e}_1 \mid \mathbf{e}_2] \in \mathbb{R}^{3 \times 2}$ be the rotation from local to global coordinates. The block-diagonal transformation
+\begin{equation}
+  T = \begin{bmatrix} R & & \\ & R & \\ & & R \end{bmatrix} \in \mathbb{R}^{9 \times 6}
+\end{equation}
+lifts the local stiffness to the global 9-DOF element stiffness:
+\begin{equation}
+  K_e^{\text{global}} = T\, K_e^{\text{local}}\, T^T \quad \in \mathbb{R}^{9 \times 9}.
+\end{equation}
+
+\paragraph{Properties.}
+\begin{itemize}
+  \item $K_e^{\text{local}}$ is $6 \times 6$, symmetric positive semi-definite, rank~3 (null space = 2 translations + 1 rotation in 2D).
+  \item $K_e^{\text{global}}$ is $9 \times 9$, symmetric positive semi-definite, rank~3 (null space includes 3 translations, in-plane rotation, and all out-of-plane displacements---membrane elements have zero bending stiffness).
+\end{itemize}
+
+
+%% ============================================================
+\subsection{Discrete Hinge Bending Stiffness Derivation}
+
+Bending stiffness resists changes in the dihedral angle between two adjacent triangles sharing an edge. The element stencil involves four vertices: the shared edge $(\mathbf{v}_0, \mathbf{v}_1)$ and the two opposite ``flap'' vertices $\mathbf{v}_2$ (triangle~A) and $\mathbf{v}_3$ (triangle~B).
+
+\paragraph{Geometric setup.}
+Define the edge vector and triangle normals:
+\begin{equation}
+  \mathbf{e} = \mathbf{v}_1 - \mathbf{v}_0, \qquad
+  \mathbf{n}_A = \mathbf{e} \times (\mathbf{v}_2 - \mathbf{v}_0), \qquad
+  \mathbf{n}_B = \mathbf{e} \times (\mathbf{v}_3 - \mathbf{v}_0).
+\end{equation}
+The triangle areas and unit normals are:
+\begin{equation}
+  A_0 = \tfrac{1}{2}\|\mathbf{n}_A\|, \quad
+  A_1 = \tfrac{1}{2}\|\mathbf{n}_B\|, \qquad
+  \hat{\mathbf{n}}_A = \frac{\mathbf{n}_A}{2 A_0}, \quad
+  \hat{\mathbf{n}}_B = \frac{\mathbf{n}_B}{2 A_1}.
+\end{equation}
+The heights (perpendicular distance from each flap vertex to the shared edge) are:
+\begin{equation}
+  h_0 = \frac{2 A_0}{\|\mathbf{e}\|}, \qquad
+  h_1 = \frac{2 A_1}{\|\mathbf{e}\|}.
+\end{equation}
+
+\paragraph{Cotangent weights.}
+The gradient of the dihedral angle at the edge vertices is distributed via cotangent weights:
+\begin{equation}
+  \begin{aligned}
+    \cot_{02} &= \frac{\mathbf{e} \cdot (\mathbf{v}_2 - \mathbf{v}_0)}{2 A_0}, &\qquad
+    \cot_{12} &= \frac{-\mathbf{e} \cdot (\mathbf{v}_2 - \mathbf{v}_1)}{2 A_0}, \\[4pt]
+    \cot_{03} &= \frac{\mathbf{e} \cdot (\mathbf{v}_3 - \mathbf{v}_0)}{2 A_1}, &\qquad
+    \cot_{13} &= \frac{-\mathbf{e} \cdot (\mathbf{v}_3 - \mathbf{v}_1)}{2 A_1}.
+  \end{aligned}
+\end{equation}
+These are the cotangents of the angles at $\mathbf{v}_0$ and $\mathbf{v}_1$ within each triangle.
+
+\paragraph{Dihedral angle gradient.}
+The gradient of the dihedral angle $\theta$ with respect to each vertex position:
+\begin{equation}
+  \begin{aligned}
+    \frac{\partial \theta}{\partial \mathbf{v}_2} &= \frac{\hat{\mathbf{n}}_A}{h_0}, \\[4pt]
+    \frac{\partial \theta}{\partial \mathbf{v}_3} &= \frac{-\hat{\mathbf{n}}_B}{h_1}, \\[4pt]
+    \frac{\partial \theta}{\partial \mathbf{v}_0} &= -\cot_{02}\, \frac{\partial \theta}{\partial \mathbf{v}_2} - \cot_{03}\, \frac{\partial \theta}{\partial \mathbf{v}_3}, \\[4pt]
+    \frac{\partial \theta}{\partial \mathbf{v}_1} &= -\cot_{12}\, \frac{\partial \theta}{\partial \mathbf{v}_2} - \cot_{13}\, \frac{\partial \theta}{\partial \mathbf{v}_3}.
+  \end{aligned}
+\end{equation}
+
+\noindent\textit{Intuition:}
+\begin{itemize}
+  \item Moving $\mathbf{v}_2$ along $\hat{\mathbf{n}}_A$ (the triangle~A normal) changes $\theta$ at rate $1/h_0$.
+  \item Moving $\mathbf{v}_3$ along $-\hat{\mathbf{n}}_B$ changes $\theta$ at rate $1/h_1$.
+  \item The edge vertices $\mathbf{v}_0, \mathbf{v}_1$ inherit contributions from both flaps via cotangent lever arms.
+  \item Translation invariance: $\sum_i \partial\theta/\partial\mathbf{v}_i = \mathbf{0}$.
+\end{itemize}
+
+The full gradient is the 12-vector:
+\begin{equation}
+  \mathbf{g} = \begin{bmatrix}
+    \partial\theta/\partial\mathbf{v}_0 \\
+    \partial\theta/\partial\mathbf{v}_1 \\
+    \partial\theta/\partial\mathbf{v}_2 \\
+    \partial\theta/\partial\mathbf{v}_3
+  \end{bmatrix} \in \mathbb{R}^{12}.
+\end{equation}
+
+\paragraph{Bending energy.}
+For small deformations from the reference configuration, the bending energy stored at a hinge is:
+\begin{equation}
+  W_b = \frac{1}{2}\, k_b \frac{\|\mathbf{e}\|^2}{A_0 + A_1}\, \theta^2,
+\end{equation}
+where the flexural rigidity is:
+\begin{equation}
+  k_b = \frac{E\, t^3}{12(1 - \nu^2)}.
+\end{equation}
+Linearizing $\theta \approx \mathbf{g}^T \mathbf{d}$ for small nodal displacements $\mathbf{d} \in \mathbb{R}^{12}$:
+\begin{equation}
+  W_b = \frac{1}{2}\, \mathbf{d}^T \underbrace{\left[ c \cdot \mathbf{g}\,\mathbf{g}^T \right]}_{K_e^{\text{bend}}}\, \mathbf{d},
+\end{equation}
+with the scalar coefficient:
+\begin{equation}
+  c = k_b \frac{\|\mathbf{e}\|^2}{A_0 + A_1}.
+\end{equation}
+
+\paragraph{Element stiffness.}
+The bending element stiffness is the rank-1 outer product:
+\begin{equation}
+  K_e^{\text{bend}} = c \cdot \mathbf{g}\,\mathbf{g}^T \quad \in \mathbb{R}^{12 \times 12}.
+\end{equation}
+
+\paragraph{Properties.}
+\begin{itemize}
+  \item $K_e^{\text{bend}}$ is $12 \times 12$, symmetric positive semi-definite, \textbf{rank~1}. Only one deformation mode (folding along the edge) stores bending energy; all other modes (translations, rotations, in-plane deformations) are in the null space.
+  \item The single nonzero eigenvalue is $\lambda = c\,\|\mathbf{g}\|^2$.
+  \item Bending stiffness scales as $E t^3$, compared to $E t$ for membrane---for thin shells ($t \ll 1$), bending is orders of magnitude softer.
+\end{itemize}
+
+\paragraph{Assembly.}
+The global bending stiffness matrix is assembled by summing $K_e^{\text{bend}}$ over all interior edges (hinges), scattering each $12 \times 12$ element matrix into the global DOFs of its four vertices. Combined with membrane stiffness, the full shell stiffness is:
+\begin{equation}
+  K = K^{\text{membrane}} + K^{\text{bend}}.
+\end{equation}
+The combined matrix has exactly 6 zero eigenvalues corresponding to rigid-body modes (3 translations + 3 rotations). Membrane covers in-plane resistance; bending covers out-of-plane resistance.
