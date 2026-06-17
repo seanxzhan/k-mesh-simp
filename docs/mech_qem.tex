@@ -31,6 +31,12 @@ energy. For the CST membrane element,
                   = \tfrac12\,A\,t\,\boldsymbol\varepsilon^T D\,\boldsymbol\varepsilon,
   \qquad \boldsymbol\varepsilon = B\mathbf{d}.
 \end{equation}
+Because $W_e$ is quadratic in the displacement, $K_e$ is exactly its \textbf{Hessian}
+$\partial^2 W_e/\partial\mathbf{d}^2$: the element stiffness \emph{is} the curvature of the
+elastic energy, and assembly $K=\sum_e K_e$ is the Hessian of the total energy (constant,
+because linear elasticity is quadratic; equivalently the tangent stiffness at the rest
+state). Everything downstream is this Hessian, restricted to a subspace and tracked as the
+mesh coarsens.
 This is \emph{already} a squared linear residual, but with a non-trivial metric.
 Factor the constitutive matrix as $D = L L^T$ (Cholesky, i.e.\ $D^{1/2}$) and define
 $M = \sqrt{A t}\,L^T B \in \mathbb{R}^{3\times 9}$. Then
@@ -113,8 +119,11 @@ mechanically-exact coarse operator is the Galerkin form
 \begin{equation}
   K_c = S^T K_f\,S,
 \end{equation}
-and the collapse error is how far the actual coarse $K_c$ deviates from it---measured
-\emph{on some set of deformations}.
+i.e.\ the fine-energy Hessian $K_f$ \emph{restricted} to the coarse displacement space
+(a congruence reduction $S^T(\cdot)S$). The collapse error is how far the actual coarse
+$K_c$ deviates from it---measured \emph{on some set of deformations}. The probe quadric
+$G=V^TKV$ below is the same move with a different map $V$: restrict the Hessian to a small,
+fixed probe space instead of to the coarse mesh.
 
 That last phrase is the real fork: \textbf{which deformations do we probe the discrepancy
 on?} This is the mechanical counterpart of ``which planes matter,'' and it is where
@@ -345,10 +354,20 @@ depending only on node $n$'s rest position. The per-element probe energy is ther
   \
   G_e = V_e^T K_e V_e \in \mathbb{R}^{12\times12},
   \
-  V_e = \begin{bmatrix} P(X_{n_1}) \\ P(X_{n_2}) \\ P(X_{n_3}) \end{bmatrix},
+  V_e = \begin{bmatrix} P(X_{n_1}) \\ P(X_{n_2}) \\ P(X_{n_3}) \end{bmatrix}.
 \end{equation}
-and the global probe stiffness $G = \sum_e G_e$ \textbf{accumulates additively over
-elements}---a small, fixed-size ($12\times12$, effective rank $6$), positive semi-definite
+Two objects are worth naming. \textbf{$V_e$ is the probe sampler}: stacking $P(X_n)$ over
+the element's nodes, it turns the $12$ affine parameters $\mathbf{a}$ into the element's $9$
+nodal displacements, $\mathbf{d}=V_e\mathbf{a}$---a fixed linear map read off the rest
+geometry alone (``evaluate this affine field at my corners''). \textbf{$G_e=V_e^T K_e V_e$
+is then the element Hessian $K_e$ restricted to the affine subspace}: substitute
+$\mathbf{d}=V_e\mathbf{a}$ into $\tfrac12\mathbf{d}^TK_e\mathbf{d}$ and the energy becomes
+$\tfrac12\mathbf{a}^TG_e\mathbf{a}$. So $G_e$ is just $K_e$ \emph{seen through the probe}---the
+stiffness the element shows against uniform strains---compressed from the awkward $9\times9$
+stencil form to a portable $12\times12$ that lives in the same coordinates for every element.
+The global probe stiffness $G = \sum_e G_e$ is the assembled Hessian under the same
+restriction: it \textbf{accumulates additively over elements}---a small, fixed-size
+($12\times12$, effective rank $6$, its null space the rigid modes), positive semi-definite
 object that \emph{is} the homogenized stiffness in probe coordinates. The collapse cost is
 the deviation of $G$ from its frozen fine-mesh target,
 \begin{equation}
@@ -595,3 +614,133 @@ The bottom line: the stiffness matrix can always be \emph{built} and is always a
 \emph{discrete} energy; what a dirty mesh costs is continuum faithfulness (only at
 non-manifold junctions, which our objective does not need) and conditioning (fixable by
 cleanup).
+
+\subsection{What the prototype computes, intuitively}
+
+We implemented the affine/curvature instantiation of the program above as a working greedy
+edge-collapse decimator. Stripped to intuition, it is six moves. The thread tying them
+together: \textbf{the stiffness is the Hessian of the elastic energy}, and we coarsen the
+mesh while preserving a probe-restricted version of that Hessian.
+
+\paragraph{1. Two energies, one per simplex.} Each element stores energy only when the
+deformation it ``cares about'' is excited; the element stiffness is the \textbf{Hessian} of
+that energy.
+\begin{itemize}
+  \item \textbf{Stretching} lives on \emph{triangles}: the CST membrane
+        $W_{\text{str}}=\tfrac12\,\mathbf{d}^\top K_e\,\mathbf{d}$ with
+        $K_e=A\,t\,B^\top D B=\partial^2 W_{\text{str}}/\partial\mathbf{d}^2$ penalizes
+        in-plane stretch/shear, weighted by area $A$, thickness $t$ and material $D$.
+        Rank $3$, and \emph{blind} to out-of-plane motion.
+  \item \textbf{Bending} lives on \emph{interior edges}: the hinge
+        $W_{\text{bend}}=\tfrac12\,c\,(\mathbf{g}^\top\mathbf{d})^2$ with
+        $\mathbf{g}=\nabla\theta$ penalizes change of the dihedral angle. Rank $1$; a
+        boundary edge has no second triangle, hence no hinge.
+\end{itemize}
+
+\paragraph{2. The costs add because energies add.} Both families scatter into one global
+elastic energy by finite-element assembly, $K=\sum_e K_e$---purely additive and
+combinatorial, with no ``triangle step vs.\ edge step'' to decide. An edge collapse disturbs
+only its $1$-ring, so every cost we compute is local.
+
+\paragraph{3. A probe turns the response \emph{operator} into a \emph{number}.} $K$ is a
+response operator, not an error: it vanishes at rest and on every rigid motion. To score a
+collapse we must choose a family of test deformations---a \emph{probe}---and ask how the
+response to them changes.
+\begin{itemize}
+  \item \textbf{Affine probe:} the uniform fields $\mathbf{u}(X)=FX+\mathbf{c}$. Their six
+        constant-strain modes (symmetric $F$) carry energy; translation and rotation are
+        rigid and free. Because an affine field reads each node only through its own rest
+        position (via the sampler $V_e$, which maps the probe parameters to nodal
+        displacements), the element response collapses to a small fixed-size quadric
+        $G_e=V_e^\top K_e V_e$---\emph{the energy Hessian restricted to the probe}---that
+        \textbf{accumulates additively per vertex}, exactly like a Garland--Heckbert quadric.
+        Probing with these preserves the \emph{homogenized} (bulk) stiffness---the patch test.
+  \item \textbf{Curvature probe:} affine fields are flat, so they never bend a flat patch
+        and the hinge is invisible to them. Enriching the probe with the quadratic fields
+        $\mathbf{u}(X)=\tfrac12 X^\top H X+FX+\mathbf{c}$ (constant curvature) makes bending
+        register. Same additive bookkeeping, a slightly larger quadric.
+\end{itemize}
+
+\paragraph{Probing in one tiny example (two springs).} Three nodes on a line, $A,m,B$ at
+$x=0,1,2$, joined by two unit springs, so
+$E=\tfrac12(u_m-u_A)^2+\tfrac12(u_B-u_m)^2$ and
+\begin{equation}
+  K=\begin{bmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{bmatrix}.
+\end{equation}
+The stiffness $K$ scores \emph{every} deformation, but it is $3\times3$ and entangled with
+the interior node $m$. Probe it: the $1$-D affine field $\mathbf{u}(x)=\varepsilon x+c$
+($\varepsilon$ a uniform stretch, $c$ a rigid translation), sampled at the nodes, gives the
+probe map $V$ and the reduced stiffness $G$,
+\begin{equation}
+  V=\begin{bmatrix}x_A&1\\x_m&1\\x_B&1\end{bmatrix}
+   =\begin{bmatrix}0&1\\1&1\\2&1\end{bmatrix},
+  \qquad
+  G=V^TKV=\begin{bmatrix}2&0\\0&0\end{bmatrix}.
+\end{equation}
+Read $G$ off directly: stretching the chain by a unit strain stores energy
+$\tfrac12\cdot 2\cdot\varepsilon^2$, while translating it ($c$) stores nothing---the rigid
+null mode. That single ``$2$'' is the chain's entire fingerprint as the probe sees it; the
+$3\times3$ operator has been squeezed to one meaningful number (plus a structural zero).
+\textbf{Collapse the interior node} and the coarse model is one spring $A\!-\!B$ of stiffness
+$k_c$; probing it the \emph{same} way gives $G_c=k_c\,(x_B-x_A)^2=4k_c$---now directly
+comparable, though the meshes differ in size. Matching the fingerprint forces
+$k_c=\tfrac12$ (exactly the series stiffness $k_1k_2/(k_1{+}k_2)$), and the collapse cost
+$\|G_c-G\|=|4k_c-2|$ rejects a naive reconnect ($k_c{=}1\Rightarrow$ cost $2$, too stiff) in
+favor of the faithful one ($k_c{=}\tfrac12\Rightarrow$ cost $0$). The mesh version is
+identical, only with the six constant-strain modes in place of the single $\varepsilon$, so
+$G$ is $12\times12$ (six stiffness numbers $+$ six rigid zeros) rather than $2\times2$.
+
+\paragraph{Choosing \emph{which} edge to collapse.} The score is not ``make it stiff''---it
+is ``change the fingerprint as little as possible,'' and the two ways to remove $m$ are
+generally \emph{not} equal. Give the springs different stiffnesses, $k_1=2$ on $A\!-\!m$ and
+$k_2=1$ on $m\!-\!B$, so the fine fingerprint is $G_{\text{fine}}=k_1+k_2=3$. Removing $m$
+collapses one of its two edges; the spring on the \emph{other} edge survives and now spans
+the full $A\!-\!B$ gap (length $2$), so its probe energy uses that doubled span:
+\begin{itemize}
+  \item \textbf{collapse $A\!-\!m$} (the stiff edge): the soft spring survives,
+        $G_{\text{after}}=k_2\,(x_B-x_A)^2=4$, cost $|4-3|=1$;
+  \item \textbf{collapse $m\!-\!B$} (the soft edge): the stiff spring survives,
+        $G_{\text{after}}=k_1\,(x_B-x_A)^2=8$, cost $|8-3|=5$.
+\end{itemize}
+The heap therefore collapses $A\!-\!m$ first---five times cheaper. (A single spring spanning
+the whole gap is always stiffer than the two short ones it replaces, so both moves
+over-stiffen; promoting the \emph{stiff} spring over-stiffens far more, so keeping the soft
+one is the smaller change.) Note we are minimizing the \emph{deviation} of the fingerprint,
+never maximizing stiffness: the score ranks the available moves and takes the gentlest. On a
+mesh this is the same comparison, run over every edge with the $12$-number $G$.
+
+\paragraph{4. The collapse cost is lost homogenized response.} Collapsing $(v_i,v_j)$ and
+re-meshing the ring changes the accumulated $G$ by $\Delta G$; the price is
+$\|\Delta G\|^2$---``how much homogenized response did this collapse destroy.'' Stretching,
+bending and an optional geometric (QEM) term enter as \emph{separate} contributions, each
+normalized to its own typical (median) magnitude so the weights are dimensionless---a weight
+of $1$ means ``as costly as a typical membrane collapse.'' Bending is \emph{re-read at the
+collapse}, not frozen, because the collapse shifts the dihedral references throughout the
+ring.
+
+\paragraph{5. A quiet fact: affine stretching $\approx$ geometry.} Preserving the homogenized
+membrane stiffness under affine probes turns out to be essentially preserving area and
+shape---i.e.\ geometric QEM reweighted by $D$. The cost penalizes pulling a vertex \emph{off}
+the surface (quadratically) while letting it \emph{slide} tangentially (almost free), exactly
+like a tangent-plane quadric---though we never wrote a distance-to-plane term. It
+\emph{emerges} from patch-test invariance: re-triangulating a flat region in-plane does not
+change its bulk stiffness, but tilting it out of plane does. So for membrane, mechanical and
+geometric fidelity coincide; they part ways only where the material varies, or once the
+curvature / eigenmode probes bring in bending and global compliance.
+
+\paragraph{6. Where the merged vertex goes.} We keep it \emph{on the collapsing edge},
+$w(\alpha)=(1-\alpha)\,\mathbf{x}_i+\alpha\,\mathbf{x}_j$ with $\alpha\in[0,1]$. The cost is
+\emph{not} quadratic in a free $3$-D position (area and the strain gradient depend on it
+nonlinearly), so there is no closed-form $-A^{-1}\mathbf{b}$ minimizer as in geometric QEM.
+Instead we run a one-dimensional line search along the edge: evaluate the cost at
+$\alpha\in\{0,\tfrac12,1\}$, fit a parabola, and take its minimum on $[0,1]$. Staying on the
+edge keeps the coarse mesh on the original surface, and a placement that would sliver a
+triangle prices itself out automatically (its area, hence its $G_e$, collapses and
+$\|\Delta G\|$ jumps).
+
+\medskip
+\noindent The loop itself is ordinary greedy QEM---score every edge, collapse the cheapest,
+re-score the affected ring---with the geometric face quadric swapped for this mechanical,
+probe-projected one. A caveat worth keeping in view: minimizing each collapse is greedy and
+path-dependent, so a locally better placement need not improve the \emph{global} coarse
+response; the per-step cost is an honest local score, not a global optimum.

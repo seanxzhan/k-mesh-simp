@@ -83,6 +83,26 @@ class Quadric:
         return line_q * scale
 
     @classmethod
+    def from_boundary_edge(
+        cls, v1: np.ndarray, v2: np.ndarray, face_normal: np.ndarray, weight: float = 1.0
+    ) -> Quadric:
+        """Boundary-preserving quadric (Garland & Heckbert 1997, sec 6).
+
+        For an open (boundary) edge (v1, v2) of the incident triangle whose
+        (unnormalized) normal is ``face_normal``, build the plane that *contains
+        the edge* and is *perpendicular to the triangle* -- its normal is
+        ``edge_dir x face_normal`` -- and penalize squared distance to it. Summed
+        over a boundary vertex's incident boundary edges, this pins the vertex to
+        the boundary curve (frozen at corners, free to slide along straight runs)
+        so simplification does not erode open edges. ``weight`` scales the penalty.
+        """
+        e = v2 - v1
+        normal = np.cross(e, face_normal)
+        if np.linalg.norm(normal) < 1e-12:
+            return cls()  # degenerate (e parallel to face normal) -> no constraint
+        return cls.from_plane(normal, v1) * weight
+
+    @classmethod
     def vertex_quadric(cls, face_quadrics: list[Quadric], face_areas: list[float]) -> Quadric:
         """Area-weighted sum of face quadrics for a vertex."""
         result = cls()

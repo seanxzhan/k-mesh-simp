@@ -58,6 +58,24 @@ def test_scalar_multiply():
     assert q2.c == 6.0
 
 
+def test_boundary_edge_quadric():
+    v1 = np.array([0.0, 0.0, 0.0])
+    v2 = np.array([1.0, 0.0, 0.0])
+    face_normal = np.array([0.0, 0.0, 2.0])  # +z (unnormalized is fine)
+    q = Quadric.from_boundary_edge(v1, v2, face_normal, weight=1.0)
+    # plane contains the edge and the face normal (here: the y = 0 plane), so the
+    # endpoints and any off-surface (+z) point have zero error
+    np.testing.assert_allclose(q.compute_error(v1), 0.0, atol=1e-12)
+    np.testing.assert_allclose(q.compute_error(v2), 0.0, atol=1e-12)
+    np.testing.assert_allclose(q.compute_error(np.array([0.5, 0.0, 9.0])), 0.0, atol=1e-12)
+    # moving off the boundary line (in-surface, perpendicular to the edge) is penalized
+    assert q.compute_error(np.array([0.5, 1.0, 0.0])) > 0.5
+    # weight scales the penalty
+    off = np.array([0.0, 1.0, 0.0])
+    q3 = Quadric.from_boundary_edge(v1, v2, face_normal, weight=3.0)
+    np.testing.assert_allclose(q3.compute_error(off), 3.0 * q.compute_error(off), atol=1e-12)
+
+
 def test_vertex_quadric_from_faces():
     face_quadrics = [
         Quadric.from_triangle(np.array([0, 0, 0.0]), np.array([1, 0, 0.0]), np.array([0, 1, 0.0])),

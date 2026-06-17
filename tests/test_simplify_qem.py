@@ -1,6 +1,17 @@
 import numpy as np
-from kms.mesh import make_icosphere, face_areas
+from kms.mesh import make_icosphere, make_grid, face_areas
+from kms.adjacency import MeshAdjacency
 from kms.simplify_qem import simplify_qem
+
+
+def _max_boundary_inward_drift(m):
+    """For a mesh whose boundary should lie on the unit-square perimeter, the max
+    distance any boundary vertex has drifted inward (0 = perfectly preserved)."""
+    adj = MeshAdjacency(m)
+    bv = sorted({x for (u, v) in adj.get_edges() if adj.is_boundary_edge(u, v)
+                 for x in (u, v)})
+    P = m.vertices[bv]
+    return float(np.max(np.minimum.reduce([P[:, 0], 1 - P[:, 0], P[:, 1], 1 - P[:, 1]])))
 
 
 def test_reaches_target():
@@ -57,3 +68,24 @@ def test_restriction_preserves_constant():
     ones_fine = np.ones(162)
     result = P @ ones_fine
     np.testing.assert_allclose(result, np.ones(80), atol=1e-12)
+
+
+def test_boundary_quadric_noop_on_closed_mesh():
+    # icosphere is closed (no boundary edges) -> the boundary quadric is a no-op
+    mesh = make_icosphere(2)
+    r_on = simplify_qem(mesh, target_verts=80, use_boundary_quadric=True)
+    r_off = simplify_qem(mesh, target_verts=80, use_boundary_quadric=False)
+    np.testing.assert_array_equal(r_on.vertices, r_off.vertices)
+    np.testing.assert_array_equal(r_on.faces, r_off.faces)
+
+
+def test_boundary_preserved_on_open_mesh():
+    mesh = make_grid(21, 21)  # flat [0,1]^2 with a square boundary
+    r_on = simplify_qem(mesh, target_verts=80, use_boundary_quadric=True)
+    r_off = simplify_qem(mesh, target_verts=80, use_boundary_quadric=False)
+    drift_on = _max_boundary_inward_drift(r_on)
+    drift_off = _max_boundary_inward_drift(r_off)
+    # boundary stays on the original perimeter (tiny residual from the 1e-3 line
+    # quadric); far better than without, which erodes inward by ~0.05-0.1.
+    assert drift_on < 1e-4
+    assert drift_off > 100 * drift_on

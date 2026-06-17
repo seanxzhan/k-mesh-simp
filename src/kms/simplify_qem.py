@@ -15,6 +15,8 @@ def simplify_qem(
     use_optimal_position: bool = True,
     use_line_quadric: bool = True,
     line_quadric_weight: float = 1e-3,
+    use_boundary_quadric: bool = True,
+    boundary_quadric_weight: float = 1.0,
     compute_restriction: bool = False,
     verbose: bool = False,
 ) -> TriMesh | tuple[TriMesh, sparse.csc_matrix]:
@@ -25,6 +27,10 @@ def simplify_qem(
         target_verts: Target number of vertices
         use_optimal_position: If True, use SVD to find optimal merge point.
                              If False, pick the better of the two endpoints.
+        use_line_quadric: Add a line quadric per vertex (preserve sharp features).
+        use_boundary_quadric: Add a perpendicular-plane quadric per open edge so
+            simplification preserves the boundary curve (no-op on closed meshes).
+        boundary_quadric_weight: Penalty weight for the boundary quadric.
         compute_restriction: If True, also return the restriction matrix P
             such that V_coarse ~ P @ V_fine. P has non-negative entries with
             rows summing to 1.
@@ -67,6 +73,24 @@ def simplify_qem(
                 vertex_normal += n  # already area-weighted (cross product magnitude ~ 2*area)
             line_q = Quadric.from_line(adj.vertices[vi], vertex_normal, fa, line_quadric_weight)
             vertex_quadrics[vi] += line_q
+
+    # Boundary preservation: for each open edge, bake a perpendicular-plane
+    # quadric into BOTH endpoints (Garland & Heckbert 1997). No-op when the mesh
+    # has no boundary edges (e.g. a closed surface).
+    if use_boundary_quadric:
+        for u, v in adj.get_edges():
+            if not adj.is_boundary_edge(u, v):
+                continue
+            fi = next(iter(adj.edge_faces[(min(u, v), max(u, v))]))
+            a, b, c = adj.get_face_vertices(fi)
+            face_normal = np.cross(
+                adj.vertices[b] - adj.vertices[a], adj.vertices[c] - adj.vertices[a]
+            )
+            bq = Quadric.from_boundary_edge(
+                adj.vertices[u], adj.vertices[v], face_normal, boundary_quadric_weight
+            )
+            vertex_quadrics[u] += bq
+            vertex_quadrics[v] += bq
 
     # Timestamp-based stale detection
     vertex_timestamps: dict[int, int] = {v: 0 for v in range(mesh.n_verts)}
