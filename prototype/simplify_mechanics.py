@@ -96,7 +96,8 @@ def simplify_mechanics(
     geom_weight: float = 0.0,
     line_quadric_weight: float = 1e-3,
     verbose: bool = False,
-) -> TriMesh:
+    return_survivors: bool = False,
+):
     """Decimate `mesh` to `target_verts` using the mechanical-QEM cost.
 
     The collapse cost is a weighted sum of three independently-normalized terms:
@@ -355,7 +356,13 @@ def simplify_mechanics(
     if verbose:
         print(f"  done: {n_collapsed} collapses, final {adj.n_active_verts} verts")
 
-    return adj.to_trimesh()
+    result = adj.to_trimesh()
+    if return_survivors:
+        # original vertex indices that survived (same order to_trimesh uses, so
+        # coarse vertex k corresponds to original index survivors[k])
+        survivors = np.where(~adj._deleted_verts)[0]
+        return result, survivors
+    return result
 
 
 if __name__ == "__main__":
