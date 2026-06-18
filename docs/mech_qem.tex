@@ -655,10 +655,31 @@ response to them changes.
         $G_e=V_e^\top K_e V_e$---\emph{the energy Hessian restricted to the probe}---that
         \textbf{accumulates additively per vertex}, exactly like a Garland--Heckbert quadric.
         Probing with these preserves the \emph{homogenized} (bulk) stiffness---the patch test.
-  \item \textbf{Curvature probe:} affine fields are flat, so they never bend a flat patch
-        and the hinge is invisible to them. Enriching the probe with the quadratic fields
-        $\mathbf{u}(X)=\tfrac12 X^\top H X+FX+\mathbf{c}$ (constant curvature) makes bending
-        register. Same additive bookkeeping, a slightly larger quadric.
+  \item \textbf{Curvature probe:} an affine field is \emph{flat}---it sends a plane to a
+        plane---so it leaves every dihedral angle untouched: a flat hinge's two triangles
+        stay coplanar and the bending energy stored is \emph{exactly} zero. Affine probes are
+        blind to bending for a structural reason: bending is a \emph{second} derivative of
+        the displacement, and an affine field has none. So we enrich the probe with the
+        smallest fields that carry a second derivative, the \textbf{constant-curvature
+        (quadratic) fields} $u_k(X)=\tfrac12\,X^\top H_k X+F_{k,:}X+c_k$ (one symmetric
+        Hessian $H_k$ per output component $k=1,2,3$), whose constant $H_k$ curves the patch
+        the same way everywhere. This grows the probe from $12$ to $\mathbf{30}$ parameters:
+        $6$ rigid $+$ $6$ constant-strain (the affine modes, still present) $+$ $\mathbf{18}$
+        constant-curvature, and the eighteen new ones are what bend. The bookkeeping is
+        \emph{unchanged}---$P(X)$ still reads each node through its own rest position, now
+        with the quadratic monomials of $X$ appended (six per output component, $18$ in
+        all)---so $G_e=V_e^\top K_e V_e$ is merely a larger $30\times30$ quadric that still
+        \textbf{accumulates additively per vertex}; only the fixed size grows, $12\to30$.
+        Why bending now registers: the hinge's quadric is
+        $G_h=c\,(\mathbf{g}^\top V_e)^\top(\mathbf{g}^\top V_e)$, and its ``normal''
+        $\mathbf{g}^\top V_e$ is the dihedral-angle change each probe mode causes. On a flat
+        hinge an affine map keeps the triangles coplanar, so this vanishes on every affine
+        mode---but a constant-curvature mode tilts the two triangles relative to each other,
+        so it is \emph{nonzero} on the eighteen new modes. Bending therefore finally lives in
+        $G$ and is priced at every collapse---which is exactly why a positive bending weight
+        must be paired with the curvature probe. (It also tightens \emph{membrane} fidelity,
+        since the in-plane quadratic modes pin strain \emph{gradients}, not just constant
+        strain, at the cost of a stricter, ${\sim}6\times$ larger quadric.)
 \end{itemize}
 
 \paragraph{Probing in one tiny example (two springs).} Three nodes on a line, $A,m,B$ at
@@ -709,6 +730,47 @@ one is the smaller change.) Note we are minimizing the \emph{deviation} of the f
 never maximizing stiffness: the score ranks the available moves and takes the gentlest. On a
 mesh this is the same comparison, run over every edge with the $12$-number $G$.
 
+\paragraph{Probing \emph{bending}: the same chain, now a beam.} The spring chain never
+bends---axial springs store nothing in a sideways wiggle---so it cannot show what the
+curvature probe is \emph{for}. Reuse the three nodes $A,m,B$ at $x=0,1,2$, but now let them
+move \emph{transversely} (out of the line) by $w_A,w_m,w_B$, and add a discrete hinge that
+penalizes the kink at the middle node,
+\begin{equation}
+  E_{\text{bend}}=\tfrac12\,c\,(w_A-2w_m+w_B)^2=\tfrac12\,c\,(\mathbf{g}^\top\mathbf{w})^2,
+  \qquad \mathbf{g}=(1,-2,1)^\top .
+\end{equation}
+So $K_{\text{bend}}=c\,\mathbf{g}\mathbf{g}^\top$ is rank $1$---the $1$-D twin of the dihedral
+hinge, with the discrete second difference $\mathbf{g}^\top\mathbf{w}$ standing in for
+curvature. Probe it the \emph{affine} way first, with a transverse \emph{linear} field
+$w(x)=\beta x+\gamma$ (a tilt $\beta$ plus a translation $\gamma$). A straight tilt has no
+kink---its second difference is identically zero---so sampling at the nodes gives
+$\mathbf{g}^\top V_{\!\text{aff}}=(0,0)$ and
+\begin{equation}
+  G_{\text{aff}}=V_{\!\text{aff}}^\top K_{\text{bend}} V_{\!\text{aff}}=\mathbf{0}.
+\end{equation}
+\textbf{The affine probe cannot see the hinge at all}---``blind to bending,'' here as a
+literal $2\times2$ zero. Now enrich with the quadratic mode
+$w(x)=\tfrac12\kappa x^2+\beta x+\gamma$; the sampler and the reduced quadric become
+\begin{equation}
+  V=\begin{bmatrix}\tfrac12 x_A^2 & x_A & 1\\ \tfrac12 x_m^2 & x_m & 1\\
+                    \tfrac12 x_B^2 & x_B & 1\end{bmatrix}
+   =\begin{bmatrix}0&0&1\\ \tfrac12&1&1\\ 2&2&1\end{bmatrix},
+  \qquad
+  G=V^\top K_{\text{bend}} V=\begin{bmatrix}c&0&0\\ 0&0&0\\ 0&0&0\end{bmatrix},
+\end{equation}
+in parameters $(\kappa,\beta,\gamma)$. The lone entry sits in the \emph{curvature} slot: the
+second difference of the quadratic part is exactly $\kappa$ (so $\mathbf{g}^\top V=(1,0,0)$),
+hence a unit curvature stores energy $\tfrac12 c$, while the tilt $\beta$ and translation
+$\gamma$---the affine modes---fall in the null space and cost nothing. Exactly as the spring
+chain squeezed its $K$ to the single stretch number ``$2$,'' the beam squeezes its hinge to
+the single bending number ``$c$''---but only once the probe is rich enough to \emph{ask}
+about curvature; the affine probe does not even carry that coordinate. (On a mesh this
+$3\times3$ becomes the $30\times30$ $G$, with eighteen curvature modes in place of this lone
+$\kappa$; and collapsing $m$ leaves the straight segment $A\!-\!B$ with no interior hinge, so
+the coarse bending fingerprint is $0$ and the collapse forfeits the whole $c$---a curvature
+response cannot be carried by fewer than three nodes, which is why bending guards features
+that stretching ignores.)
+
 \paragraph{4. The collapse cost is lost homogenized response.} Collapsing $(v_i,v_j)$ and
 re-meshing the ring changes the accumulated $G$ by $\Delta G$; the price is
 $\|\Delta G\|^2$---``how much homogenized response did this collapse destroy.'' Stretching,
@@ -728,6 +790,19 @@ change its bulk stiffness, but tilting it out of plane does. So for membrane, me
 geometric fidelity coincide; they part ways only where the material varies, or once the
 curvature / eigenmode probes bring in bending and global compliance.
 
+\paragraph{Corollary: boundaries for free.} The same area-sensitivity preserves \emph{free
+boundaries} with no separate term. ``Slide tangentially for free'' holds in the interior
+because the fan around a vertex is closed---an in-plane nudge shrinks some triangles and grows
+others, leaving area (hence $G$) unchanged. At a boundary the fan is one-sided: sliding
+\emph{along} the edge stays neutral, but sliding \emph{inward}---the in-surface direction
+$\mathbf e\times\mathbf n$ perpendicular to the edge---can only shrink the boundary triangles,
+with nothing on the open side to compensate, so it moves $G$ and is penalized. That penalized
+direction is exactly the plane geometric QEM must \emph{add by hand} to stop boundary erosion
+(its boundary-quadric normal is $\mathbf e\times\mathbf n$); here it falls out of preserving
+stiffness, because a free edge is simply material that is one-sided. (Purely a membrane
+effect---a boundary edge carries no hinge; and a \emph{dangling} flap is still a zero-energy
+mode that only the geometric term guards.)
+
 \paragraph{6. Where the merged vertex goes.} We keep it \emph{on the collapsing edge},
 $w(\alpha)=(1-\alpha)\,\mathbf{x}_i+\alpha\,\mathbf{x}_j$ with $\alpha\in[0,1]$. The cost is
 \emph{not} quadratic in a free $3$-D position (area and the strain gradient depend on it
@@ -739,8 +814,61 @@ triangle prices itself out automatically (its area, hence its $G_e$, collapses a
 $\|\Delta G\|$ jumps).
 
 \medskip
-\noindent The loop itself is ordinary greedy QEM---score every edge, collapse the cheapest,
-re-score the affected ring---with the geometric face quadric swapped for this mechanical,
-probe-projected one. A caveat worth keeping in view: minimizing each collapse is greedy and
-path-dependent, so a locally better placement need not improve the \emph{global} coarse
-response; the per-step cost is an honest local score, not a global optimum.
+\noindent The loop itself is ordinary greedy QEM---with the geometric face quadric swapped
+for this mechanical, probe-projected $G$. It is worth spelling out \emph{when} and
+\emph{where} each energy is evaluated:
+
+\begin{quote}\small
+\textbf{Precompute} (once, on the fine mesh) --- two element families: \\
+\hspace*{1.5em} \emph{stretching}, on each \textbf{triangle} $f$ --- 3 verts, 9 DOF: \\
+\hspace*{3em} $K_f=A\,t\,B^\top D B$ (rank 3); \emph{cache} $G_f=V_f^\top K_f V_f$ \\
+\hspace*{1.5em} \emph{bending}, on each \textbf{interior edge} (hinge) $h$ --- 4 verts, 12 DOF: \\
+\hspace*{3em} the 2 edge endpoints $+$ the 2 opposite triangle vertices, \\
+\hspace*{3em} $K_h=c\,\mathbf{g}\mathbf{g}^\top$ (rank 1, $\mathbf{g}=\nabla\theta$); \emph{not} cached --- reassembled \\
+\hspace*{3em} over the ring when an edge is scored (its dihedral reference drifts \\
+\hspace*{3em} under every nearby collapse, so a per-hinge cache would be stale at once) \\
+\hspace*{1.5em} normalizers $s_{\text{mem}},s_{\text{bend}},s_{\text{geom}}\leftarrow$ median initial per-edge term \\[3pt]
+\textbf{Heap}: for every edge $(u,v)$, push $\textsc{cost}(u,v)$ \\[3pt]
+\textbf{while} \#verts $>$ target: \\
+\hspace*{1.5em} pop the cheapest edge $(u,v)$ and its stored $x^\star$;\ \ \textbf{skip} if stale or non-collapsible \\
+\hspace*{1.5em} collapse $u,v\to x^\star$ \\
+\hspace*{1.5em} \emph{refresh} the cache: recompute $G_f$ for the merged ring's triangles (geometry moved) \\
+\hspace*{1.5em} re-push \emph{every} edge of that ring \hfill // not just edges at $x^\star$ \\[3pt]
+\textbf{function} \textsc{cost}$(u,v)$: \hfill // local: only the ring changes; the rest cancels \\
+\hspace*{1.5em} $A\leftarrow$ triangles incident to $u$ or $v$ \\
+\hspace*{1.5em} $G^{\mathrm m}_{\text{old}}\leftarrow\sum_{f\in A}G_f$ \hfill // membrane, from the cache \\
+\hspace*{1.5em} $G^{\mathrm b}_{\text{old}}\leftarrow$ assemble the ring's hinges at the current geometry \hfill // bending, fresh \\
+\hspace*{1.5em} \textbf{for} each on-edge placement $x=(1-\alpha)\mathbf{x}_u+\alpha\mathbf{x}_v$, $\alpha\in\{0,\tfrac12,1\}$: \\
+\hspace*{3em} $G^{\mathrm m}_{\text{new}}\leftarrow\sum$ \emph{surviving} triangles of $A$, each rebuilt with the vertex at $x$ \\
+\hspace*{3em} $G^{\mathrm b}_{\text{new}}\leftarrow$ reassemble the ring's hinges with the merged geometry at $x$ \\
+\hspace*{3em} $\text{mem}\leftarrow\|G^{\mathrm m}_{\text{new}}-G^{\mathrm m}_{\text{old}}\|^2$ \hfill // 2 collapsing triangles vanish \\
+\hspace*{3em} $\text{bend}\leftarrow\|G^{\mathrm b}_{\text{new}}-G^{\mathrm b}_{\text{old}}\|^2$ \\
+\hspace*{3em} $\text{geom}\leftarrow$ geometric-QEM error at $x$ \hfill // optional \\
+\hspace*{3em} $C(\alpha)\leftarrow \text{mem}/s_{\text{mem}}+w_b\,\text{bend}/s_{\text{bend}}+w_g\,\text{geom}/s_{\text{geom}}$ \\
+\hspace*{1.5em} fit a parabola to $C$ at $\alpha\in\{0,\tfrac12,1\}$ and also evaluate its minimizer $\alpha^\star\!\in[0,1]$ \\
+\hspace*{1.5em} \textbf{return} the cheapest $C$ over $\alpha\in\{0,\tfrac12,1,\alpha^\star\}$, with its position $x$
+\end{quote}
+
+\noindent This is QEM's faces\,$\to$\,vertices\,$\to$\,edges flow, widened to two families.
+\textbf{Stretching \emph{is} the QEM face quadric}---a triangle's $G_f$ scatters to its three
+vertices---and it is the one piece cached. \textbf{Bending is a second family living on
+interior edges}, rank-1, with a wider four-vertex stencil (the edge plus its two opposite
+vertices); it is rebuilt locally rather than stored. And neither family is pre-accumulated into
+a frozen per-vertex quadric the way classical QEM is: because the mechanical cost re-reads
+geometry, the per-edge score sums the incident elements \emph{on the fly}. That is what keeps
+the cost \emph{local}---every element outside the merged ring is identical before and after, so
+it cancels in $G_{\text{new}}-G_{\text{old}}$ and is never touched. Of the membrane triangles
+only the \emph{survivors} are rebuilt (the two folding onto the edge shrink to zero area and
+drop out), and they are recomputed \emph{at the trial position $x$}, once per candidate
+placement, since moving the vertex changes each $B$-matrix and area. Bending is likewise
+reassembled at $x$---never frozen---because shifting one vertex tilts the dihedral reference of
+every edge in the ring.
+
+\medskip
+\noindent The one caveat the pseudocode cannot hide: every energy above is evaluated
+\emph{locally and now}. The placement line returns a faithful optimum for \emph{this} collapse
+along \emph{this} edge, and the heap always spends the cheapest collapse available---but the
+outer loop is greedy and path-dependent, so a locally cheaper collapse, or a locally better
+$x^\star$, need not improve the \emph{global} coarse response: an early, gentle-looking
+collapse can force expensive ones later. The per-step cost is an honest local score, not a
+global optimum.
