@@ -107,6 +107,33 @@ def harmonic_prolongation(K, R, E, reg=1e-8):
     return X, r_dofs, e_dofs
 
 
+def harmonic_prolongation_matrix(K, survivors, n_verts, reg=1e-8):
+    """Assemble the FULL coarse->fine prolongation S (sparse, 3 n_verts x 3 n_coarse)
+    from the GLOBAL harmonic solve: handle rows are identity, eliminated rows are
+    the -K_ee^{-1} K_er block.  d_fine = S d_coarse.
+
+    survivors[k] is the fine index of coarse handle k, so column k of S is handle k
+    -- the SAME indexing simplify_mechanics' accumulated prolongation uses, so the
+    global and step-by-step maps are directly comparable / interchangeable."""
+    R = np.asarray(survivors, dtype=np.int64)
+    E = np.array(sorted(set(range(n_verts)) - set(R.tolist())), dtype=np.int64)
+    X, r_dofs, e_dofs = harmonic_prolongation(K, R, E, reg=reg)   # X: 3|E| x 3|R|
+    nc3 = 3 * len(R)
+
+    # eliminated rows: scatter dense X (its columns are already in coarse/handle order)
+    ei = np.repeat(e_dofs, nc3)
+    ej = np.tile(np.arange(nc3), len(e_dofs))
+    ev = X.ravel()
+    # handle rows: identity block, fine dof 3*R[k]+c <-> coarse dof 3*k+c
+    hi = r_dofs
+    hj = (np.arange(len(R))[:, None] * 3 + np.arange(3)).ravel()
+    hv = np.ones(len(hi))
+
+    return sparse.csr_matrix(
+        (np.concatenate([ev, hv]), (np.concatenate([ei, hi]), np.concatenate([ej, hj]))),
+        shape=(3 * n_verts, nc3))
+
+
 def geometric_weights(verts, R, E, k=4, eps=1e-9):
     """Inverse-distance kNN skinning to the handles (scalar weights, the naive
     geometric LBS baseline): W is (|E| x |R|), rows nonneg, summing to 1."""

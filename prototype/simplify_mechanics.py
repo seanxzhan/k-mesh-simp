@@ -34,6 +34,7 @@ import os
 import sys
 
 import numpy as np
+from scipy import sparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mech_qem as mq  # noqa: E402
@@ -84,6 +85,205 @@ def _hinge_G_sum(tris, posfn, kb, order, dim) -> np.ndarray:
     return G
 
 
+# --------------------------------------------------------------------------- #
+#  Design B: emit the skinning prolongation P DURING decimation
+#
+#  Each collapse eliminates one vertex v (the survivor u keeps its index, moved to
+#  x*).  Eliminating v is one Schur/condensation step: at the current geometry v's
+#  motion follows its 1-ring by the LOCAL harmonic blend
+#       d_v = sum_{j in N(v)} s_vj d_j,   s_vj = -K_vv^{-1} K_vj   (3x3 blocks),
+#  with K assembled from the live elements touching v (membrane on incident faces
+#  + bending on incident hinges).  Every element is rigid-translation invariant, so
+#  sum_j s_vj = I -- the blend is a partition of unity (and that property composes).
+#  Back-substituting the blends through the collapse sequence yields the full
+#  fine<-coarse map P, d_fine = P d_coarse: the energy-optimal "harmonic blend"
+#  cousin of the geometric alpha-blend a QEM decimator records.
+#
+#  The blend's local K uses prolong_thickness (~0.05), NOT the (thin) decimation
+#  thickness: a too-thin shell leaves K_vv ill-conditioned out-of-plane -- the same
+#  effect that breaks partition-of-unity in harmonic_skinning at t=1e-3.
+# --------------------------------------------------------------------------- #
+def _hinges_at_vertex(adj: MeshAdjacency, v: int):
+    """Live interior-edge hinge stencils [e0, e1, w0, w1] whose 4-vertex stencil
+    contains v -- as an edge endpoint AND as a wing (v's motion bends both)."""
+    hinges = []
+    seen = set()
+    for w in adj.vert_neighbors[v]:                         # v an edge endpoint
+        key = (min(v, w), max(v, w))
+        fs = list(adj.edge_faces.get(key, ()))
+        if len(fs) != 2:
+            continue
+        wings = [x for fi in fs for x in adj.get_face_vertices(fi) if x != v and x != w]
+        if len(wings) != 2:
+            continue
+        hk = (key, tuple(sorted(wings)))
+        if hk not in seen:
+            seen.add(hk)
+            hinges.append((v, w, wings[0], wings[1]))
+    for fi in adj.vert_faces[v]:                            # v a wing (opposite edge)
+        opp = [x for x in adj.get_face_vertices(fi) if x != v]
+        if len(opp) != 2:
+            continue
+        p, q = opp
+        key = (min(p, q), max(p, q))
+        fs = list(adj.edge_faces.get(key, ()))
+        if len(fs) != 2:
+            continue
+        e = next((x for fj in fs if fj != fi
+                  for x in adj.get_face_vertices(fj) if x != p and x != q), None)
+        if e is None:
+            continue
+        hk = (key, tuple(sorted((v, e))))
+        if hk not in seen:
+            seen.add(hk)
+            hinges.append((p, q, v, e))
+    return hinges
+
+
+def _v_harmonic_blend(adj: MeshAdjacency, v: int, D, t, kb, reg=1e-8):
+    """Local harmonic condensation of v: {neighbor j -> 3x3 s_vj} with
+    sum_j s_vj = I.  Returns None if degenerate (caller hard-binds to survivor)."""
+    row: dict = {}
+
+    def add(Ke, stencil):
+        iv = stencil.index(v)
+        rblk = Ke[3 * iv:3 * iv + 3]                        # v's row block, 3 x 3k
+        for p, j in enumerate(stencil):
+            blk = rblk[:, 3 * p:3 * p + 3]
+            row[j] = row[j] + blk if j in row else blk.copy()
+
+    for fi in adj.vert_faces[v]:
+        a, b, c = adj.get_face_vertices(fi)
+        Ke, _ = mq.cst_membrane_Ke(adj.vertices[a], adj.vertices[b], adj.vertices[c], D, t)
+        if Ke is not None:
+            add(Ke, [a, b, c])
+    for (h0, h1, h2, h3) in _hinges_at_vertex(adj, v):
+        Ke = mq.hinge_bend_Ke(adj.vertices[h0], adj.vertices[h1],
+                              adj.vertices[h2], adj.vertices[h3], kb)
+        if Ke is not None:
+            add(Ke, [h0, h1, h2, h3])
+
+    Kvv = row.pop(v, None)
+    if Kvv is None or not row:
+        return None
+    Kvv = Kvv + reg * (np.trace(Kvv) / 3.0 + 1e-30) * np.eye(3)
+    return {j: -np.linalg.solve(Kvv, Kvj) for j, Kvj in row.items()}
+
+
+def _v_meanvalue_blend(adj: MeshAdjacency, v: int, eps=1e-12):
+    """Mean-value coordinates (Floater 2003) of v w.r.t. its 1-ring: a STIFFNESS-FREE
+    blend {neighbor j -> w_vj * I3} with w_vj >= 0 and sum_j w_vj = 1, reproducing
+    v = sum_j w_vj p_j (affine precision).  Computed at the current geometry from the
+    fan angles at v and the neighbor distances -- no K, the smooth geometric cousin of
+    the elastic _v_harmonic_blend.  Returns None if the 1-ring can't be ordered into a
+    manifold fan (caller then binds v to its survivor)."""
+    pv = adj.vertices[v]
+    # order the 1-ring: each incident face (v, a, b) is a directed link edge a -> b
+    succ: dict = {}
+    for fi in adj.vert_faces[v]:
+        tri = [int(x) for x in adj.get_face_vertices(fi)]
+        i = tri.index(v)
+        a, b = tri[(i + 1) % 3], tri[(i + 2) % 3]
+        if a in succ:
+            return None                                    # non-manifold fan
+        succ[a] = b
+    if not succ:
+        return None
+    starts = list(set(succ) - set(succ.values()))
+    if not starts:                                         # closed fan (interior)
+        start, closed = next(iter(succ)), True
+    elif len(starts) == 1:                                 # open fan (boundary)
+        start, closed = starts[0], False
+    else:
+        return None
+    order, cur = [start], start
+    while cur in succ and len(order) <= len(succ):
+        nxt = succ[cur]
+        if nxt == start:
+            break
+        order.append(nxt)
+        cur = nxt
+    if set(order) != set(adj.vert_neighbors[v]):
+        return None
+    n = len(order)
+    d = np.array([adj.vertices[j] - pv for j in order], dtype=float)
+    r = np.linalg.norm(d, axis=1)
+    if np.any(r < eps):
+        return None
+    d = d / r[:, None]
+    m = n if closed else n - 1                             # number of fan angles
+    ht = np.array([np.tan(0.5 * np.arccos(np.clip(float(d[k] @ d[(k + 1) % n]),
+                                                  -1.0, 1.0)))
+                   for k in range(m)])
+    w = np.zeros(n)
+    for j in range(n):
+        if closed:
+            w[j] = (ht[(j - 1) % n] + ht[j]) / r[j]
+        else:                                              # open: ends drop a term
+            t_prev = ht[j - 1] if j >= 1 else 0.0
+            t_next = ht[j] if j <= n - 2 else 0.0
+            w[j] = (t_prev + t_next) / r[j]
+    sw = w.sum()
+    if not np.isfinite(sw) or sw <= eps:
+        return None
+    w /= sw
+    return {order[j]: w[j] * np.eye(3) for j in range(n)}
+
+
+def _compose_prolongation(elim, survivors, n_fine, mode="harmonic"):
+    """Back-substitute the per-collapse blends into the sparse prolongation P,
+    shape (3 n_fine, 3 n_coarse), with d_fine = P d_coarse.
+
+    mode="harmonic" uses each collapse's recorded 1-ring blend; mode="edge" uses
+    {survivor u -> I} (the faithful 2-point edge blend -> piecewise-constant).
+
+    Resolved in REVERSE collapse order: when v was eliminated all its neighbors
+    were live, hence each is either a coarse handle or a vertex eliminated LATER
+    (already resolved earlier in this reversed pass) -- a clean back-substitution.
+    """
+    coarse_of = {int(o): k for k, o in enumerate(survivors)}
+    handle_set = set(coarse_of)
+    n_coarse = len(survivors)
+
+    P_rows: dict = {int(h): {coarse_of[int(h)]: np.eye(3)} for h in survivors}
+    for (v, u, blends) in reversed(elim):
+        blend = {u: np.eye(3)} if mode == "edge" else blends[mode]
+        rowP: dict = {}
+        for j, B in blend.items():
+            if j in handle_set:                             # neighbor is a handle
+                k = coarse_of[j]
+                rowP[k] = rowP[k] + B if k in rowP else B.copy()
+            else:                                           # eliminated later -> resolved
+                for k, Bjh in P_rows.get(j, {}).items():
+                    BB = B @ Bjh
+                    rowP[k] = rowP[k] + BB if k in rowP else BB
+        P_rows[v] = rowP
+
+    rows, cols, data = [], [], []
+    for i in range(n_fine):
+        for k, B in P_rows.get(i, {}).items():
+            for rr in range(3):
+                for cc in range(3):
+                    val = B[rr, cc]
+                    if val != 0.0:
+                        rows.append(3 * i + rr)
+                        cols.append(3 * k + cc)
+                        data.append(val)
+    return sparse.csr_matrix((data, (rows, cols)), shape=(3 * n_fine, 3 * n_coarse))
+
+
+def prolongation_scalar_weights(P, n_fine=None, n_coarse=None) -> np.ndarray:
+    """Scalar LBS weights w[i,k] = (1/3) tr(P_ik) from the 3x3-block prolongation;
+    rows sum to 1 (partition of unity), so they paint as classic skinning weights."""
+    n_fine = n_fine or P.shape[0] // 3
+    n_coarse = n_coarse or P.shape[1] // 3
+    Pc = P.tocoo()
+    mask = (Pc.row % 3) == (Pc.col % 3)                     # diagonal of each 3x3 block
+    W = np.zeros((n_fine, n_coarse))
+    np.add.at(W, (Pc.row[mask] // 3, Pc.col[mask] // 3), Pc.data[mask] / 3.0)
+    return W
+
+
 def simplify_mechanics(
     mesh: TriMesh,
     target_verts: int,
@@ -97,6 +297,9 @@ def simplify_mechanics(
     line_quadric_weight: float = 1e-3,
     verbose: bool = False,
     return_survivors: bool = False,
+    return_prolongation: bool = False,
+    prolong_thickness: float = 0.05,
+    prolong_mode: str = "harmonic",
 ):
     """Decimate `mesh` to `target_verts` using the mechanical-QEM cost.
 
@@ -124,13 +327,42 @@ def simplify_mechanics(
         before/after each candidate collapse (a collapse moves the dihedral
         reference of every 1-ring edge). Normalization makes it thickness-free.
     geom_weight > 0 blends a geometric QEM term (visual fidelity).
+
+    return_prolongation=True (Design B) ALSO emits the fine<-coarse skinning map P
+        (sparse, 3 n_fine x 3 n_coarse, d_fine = P d_coarse), built by composing a
+        local harmonic condensation per collapse -- see the section comment above.
+        The handle/proxy positions are kept (the optimized x*), so P drives the fine
+        mesh directly from a deformation of the decimated coarse mesh (the PBD use
+        case). Returns (coarse_mesh, survivors, P). prolong_thickness conditions P's
+        local solves (decoupled from the decimation `thickness`).
+    prolong_mode selects the per-collapse local rule for P (used only when
+        return_prolongation=True):
+        "harmonic" (default) -- v follows its whole 1-ring by the local elastic
+            condensation s_vj = -K_vv^{-1} K_vj (smooth, signed weights, broad
+            support; the only mode that uses K). Returns a single P.
+        "edge" -- the FAITHFUL 2-POINT EDGE BLEND: the eliminated v simply follows
+            its survivor u. The placement weight a is a fine->coarse averaging
+            weight that cancels in any consistent coarse->fine map, so this composes
+            to a piecewise-constant cluster skin (each fine vertex bound to exactly
+            one handle, weight 1 -- sparsest, strictly nonneg/PoU, blockiest).
+            Returns a single P.
+        "geometric" -- STIFFNESS-FREE mean-value coordinates (Floater 2003) of v over
+            its 1-ring: a convex blend (w_vj >= 0, sum = 1) reproducing v = sum w_vj
+            p_j (affine precision), geometry only. Smoother than "edge", no K.
+            Returns a single P.
+        "all" -- returns {"harmonic", "edge", "geometric"} from ONE decimation (the
+            collapse sequence is identical; only the recorded local rule differs).
     """
     D = mq.plane_stress_D(E, nu)
     kb = mq.bending_coeff(E, nu, thickness)
+    prolong_kb = mq.bending_coeff(E, nu, prolong_thickness)  # for the skinning map P
     order = probe
     dim = mq.probe_dim(order)
     with_bending = bending_weight > 0.0
+    assert prolong_mode in ("harmonic", "edge", "geometric", "all"), \
+        f"bad prolong_mode: {prolong_mode}"
     adj = MeshAdjacency(mesh)
+    elim: list = []      # (eliminated v, survivor u, {neighbor: 3x3 s_vj}) per collapse
 
     # per-face membrane quadric cache (current geometry, in the probe space)
     face_G = {fi: _face_G(adj, fi, D, thickness, order) for fi in range(mesh.n_faces)}
@@ -311,6 +543,25 @@ def simplify_mechanics(
             continue
 
         shared = set(adj.edge_faces.get((min(u, v), max(u, v)), set()))
+
+        if return_prolongation:
+            # record how the eliminated vertex v follows its 1-ring (current geom),
+            # BEFORE the collapse rewires topology. u (survivor) is among v's
+            # neighbors. Each requested map gets its own local blend: "harmonic" =
+            # elastic condensation -K_vv^-1 K_vj; "geometric" = stiffness-free
+            # mean-value coordinates; "edge" needs only the survivor u (stored below)
+            # -> piecewise-constant. "all" emits every blend from one decimation.
+            blends: dict = {}
+            if prolong_mode in ("harmonic", "all"):
+                s = _v_harmonic_blend(adj, v, D, prolong_thickness, prolong_kb)
+                blends["harmonic"] = s if s is not None else {u: np.eye(3)}
+            if prolong_mode in ("geometric", "all"):
+                g = _v_meanvalue_blend(adj, v)
+                blends["geometric"] = g if g is not None else {u: np.eye(3)}
+            elim.append((int(v), int(u),
+                         {m: {int(j): b for j, b in bl.items()}
+                          for m, bl in blends.items()}))
+
         affected = adj.collapse_edge(u, v, pos)
         n_collapsed += 1
 
@@ -357,10 +608,23 @@ def simplify_mechanics(
         print(f"  done: {n_collapsed} collapses, final {adj.n_active_verts} verts")
 
     result = adj.to_trimesh()
+    # original vertex indices that survived (same order to_trimesh uses, so coarse
+    # vertex k corresponds to original index survivors[k])
+    survivors = np.where(~adj._deleted_verts)[0]
+    if return_prolongation:
+        if prolong_mode == "all":
+            P = {m: _compose_prolongation(elim, survivors, mesh.n_verts, m)
+                 for m in ("harmonic", "edge", "geometric")}
+            items = list(P.items())
+        else:
+            P = _compose_prolongation(elim, survivors, mesh.n_verts, prolong_mode)
+            items = [(prolong_mode, P)]
+        if verbose:
+            for nm, M in items:
+                print(f"  prolongation[{nm}]: {M.shape}, {M.nnz} nnz "
+                      f"({M.nnz / (3 * mesh.n_verts):.1f} per fine dof)")
+        return result, survivors, P
     if return_survivors:
-        # original vertex indices that survived (same order to_trimesh uses, so
-        # coarse vertex k corresponds to original index survivors[k])
-        survivors = np.where(~adj._deleted_verts)[0]
         return result, survivors
     return result
 
@@ -372,3 +636,32 @@ if __name__ == "__main__":
     m = make_grid(21, 21)
     out = simplify_mechanics(m, target_verts=150, verbose=True)
     print(f"grid {m.n_verts} -> {out.n_verts} verts, {out.n_faces} faces")
+
+    # Design B: emit + validate ALL skinning prolongations (bending-aware):
+    #   harmonic = local elastic 1-ring condensation;  edge = faithful 2-point edge
+    #   blend (-> piecewise constant);  geometric = stiffness-free mean-value coords.
+    coarse, survivors, Ps = simplify_mechanics(
+        m, target_verts=150, probe="curvature", bending_weight=1.0,
+        return_prolongation=True, prolong_mode="all", verbose=True)
+    nf, nc = m.n_verts, len(survivors)
+    coarse_of = {int(o): k for k, o in enumerate(survivors)}
+    t = np.array([0.3, -0.7, 1.1])
+    for name, P in Ps.items():
+        assert P.shape == (3 * nf, 3 * nc), (name, P.shape)
+        W = prolongation_scalar_weights(P)
+        pou = float(np.abs(W.sum(axis=1) - 1.0).max())
+        df = (P @ np.tile(t, nc)).reshape(-1, 3)
+        trans = float(np.abs(df - t).max())
+        hid = max(float(np.abs(P[3 * h:3 * h + 3].toarray()[:, 3 * coarse_of[int(h)]:
+                                                             3 * coarse_of[int(h)] + 3]
+                               - np.eye(3)).max()) for h in survivors[:20])
+        extra = ""
+        if name == "edge":
+            nz = (W > 1e-9).sum(axis=1)
+            assert int(nz.max()) == 1 and int(nz.min()) == 1, \
+                f"edge not piecewise-constant: {int(nz.min())}..{int(nz.max())} handles/vertex"
+            extra = "  (piecewise-constant: 1 handle/vertex)"
+        print(f"  P[{name}]: partition-of-unity err={pou:.2e}  translation err={trans:.2e}  "
+              f"handle-identity err={hid:.2e}{extra}")
+        assert pou < 1e-5 and trans < 1e-5 and hid < 1e-10, (name, pou, trans, hid)
+    print("  prolongation self-check: PASS (harmonic + edge + geometric)")
