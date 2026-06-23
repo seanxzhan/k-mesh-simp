@@ -1,8 +1,9 @@
-We want to simplify a mesh while preserving its \emph{mechanical responsiveness},
-formulating a quadric error analogous to the geometric QEM of Garland \& Heckbert.
-This section builds the analogy from the ground up, identifies the natural
-``plane quadric'' for the mechanical case, and is honest about where the geometric
-and mechanical settings genuinely diverge.
+\section{Scratch}
+
+\section{Toward a Mechanics-Preserving Quadric Error Metric}
+
+We want to simplify a mesh while preserving its \emph{mechanical responsiveness}, formulating a quadric error analogous to the geometric QEM of Garland \& Heckbert.
+This section builds the analogy from the ground up, identifies the natural ``plane quadric'' for the mechanical case, and is honest about where the geometric and mechanical settings genuinely diverge.
 
 \subsection{What the QEM plane quadric actually is}
 
@@ -12,49 +13,37 @@ Stripped to its skeleton, the geometric face quadric is a \textbf{squared linear
 \end{equation}
 \begin{itemize}
   \item The \textbf{variable} is an absolute point position $\mathbf{x}\in\mathbb{R}^3$.
-  \item The \textbf{residual} $r_f$ is the signed distance to the plane---a \emph{linear
-        functional} of the variable that is zero on the ``correct'' set (the plane itself).
-  \item The matrix $\mathbf{n}\mathbf{n}^T$ is rank-1 and positive semi-definite; its
-        \textbf{null space is the in-plane directions}---the motions that cost nothing.
-  \item Accumulation ($\sum_f$) works because every face's residual is written in the
-        \emph{same} variable $\mathbf{x}$.
+  \item The \textbf{residual} $r_f$ is the signed distance to the plane---a \emph{linear functional} of the variable that is zero on the ``correct'' set (the plane itself).
+  \item The matrix $\mathbf{n}\mathbf{n}^T$ is rank-1 and positive semi-definite; its \textbf{null space is the in-plane directions}---the motions that cost nothing.
+  \item Accumulation ($\sum_f$) works because every face's residual is written in the \emph{same} variable $\mathbf{x}$.
 \end{itemize}
-So QEM follows a template: \emph{pick a quantity that should be preserved (flatness),
-write its violation as a squared linear residual, sum the residuals.}
+So QEM follows a template: \emph{pick a quantity that should be preserved (flatness), write its violation as a squared linear residual, sum the residuals.}
 
 \subsection{Transplanting the template to mechanics}
 
-The quantity we want to preserve is \emph{elastic response}, encoded by the element
-energy. For the CST membrane element,
+The quantity we want to preserve is \emph{elastic response}, encoded by the element energy.
+For the CST membrane element,
 \begin{equation}
   W_e(\mathbf{d}) = \tfrac12\,\mathbf{d}^T K_e\,\mathbf{d}
                   = \tfrac12\,A\,t\,\boldsymbol\varepsilon^T D\,\boldsymbol\varepsilon,
   \qquad \boldsymbol\varepsilon = B\mathbf{d}.
 \end{equation}
-Because $W_e$ is quadratic in the displacement, $K_e$ is exactly its \textbf{Hessian}
-$\partial^2 W_e/\partial\mathbf{d}^2$: the element stiffness \emph{is} the curvature of the
-elastic energy, and assembly $K=\sum_e K_e$ is the Hessian of the total energy (constant,
-because linear elasticity is quadratic; equivalently the tangent stiffness at the rest
-state). Everything downstream is this Hessian, restricted to a subspace and tracked as the
-mesh coarsens.
 This is \emph{already} a squared linear residual, but with a non-trivial metric.
-Factor the constitutive matrix as $D = L L^T$ (Cholesky, i.e.\ $D^{1/2}$) and define
-$M = \sqrt{A t}\,L^T B \in \mathbb{R}^{3\times 9}$. Then
+Factor the constitutive matrix as $D = L L^T$ (Cholesky, i.e.\ $D^{1/2}$) and define $M = \sqrt{A t}\,L^T B \in \mathbb{R}^{3\times 9}$.
+Then
 \begin{equation}
   W_e(\mathbf{d}) = \tfrac12\sum_{k=1}^{3}\big(\mathbf{m}_k^T\mathbf{d}\big)^2,
 \end{equation}
-where $\mathbf{m}_k^T$ are the rows of $M$. \textbf{Each term is a generalized plane
-quadric.} The strain plays the role of distance, and the constitutive matrix $D$ is the
-metric that geometric QEM leaves as the identity.
+where $\mathbf{m}_k^T$ are the rows of $M$.
+\textbf{Each term is a generalized plane quadric.}
+The strain plays the role of distance, and the constitutive matrix $D$ is the metric that geometric QEM leaves as the identity.
 
 The bending hinge is even cleaner---it is \emph{literally} a single plane quadric:
 \begin{equation}
   W_b(\mathbf{d}) = \tfrac12\,c\,(\mathbf{g}^T\mathbf{d})^2
                   = \tfrac12\,\big(\underbrace{\sqrt{c}\,\mathbf{g}}_{\text{``normal''}}{}^{\!T}\mathbf{d}\big)^2.
 \end{equation}
-The linearized dihedral angle $\mathbf{g}^T\mathbf{d}$ \emph{is} the signed-distance
-residual; $\sqrt{c}\,\mathbf{g}$ \emph{is} the plane normal---only it lives in $12$-D
-displacement space instead of $3$-D position space.
+The linearized dihedral angle $\mathbf{g}^T\mathbf{d}$ \emph{is} the signed-distance residual; $\sqrt{c}\,\mathbf{g}$ \emph{is} the plane normal---only it lives in $12$-D displacement space instead of $3$-D position space.
 
 \subsection{The dictionary}
 
@@ -85,143 +74,97 @@ accumulation: $\sum_f$ on shared $\mathbf{x}$
 \end{tabular}
 \end{center}
 
-\noindent\textbf{The mechanical ``plane quadric'' is the element stiffness $K_e$}, viewed
-as a squared strain-residual in the energy metric $D$. It is positive semi-definite, its
-null space is exactly the deformations that ``don't matter'' (rigid motion), and it
-factors into rank-1 generalized plane quadrics whose ``normals'' are strain-sensing
-co-modes. This is not a hack---it is the same template (preserve-a-quantity
-$\rightarrow$ squared-linear-residual $\rightarrow$ sum) instantiated on strain instead
-of distance.
+\noindent\textbf{The mechanical ``plane quadric'' is the element stiffness $K_e$}, viewed as a squared strain-residual in the energy metric $D$.
+It is positive semi-definite, its null space is exactly the deformations that ``don't matter'' (rigid motion), and it factors into rank-1 generalized plane quadrics whose ``normals'' are strain-sensing co-modes.
+This is not a hack---it is the same template (preserve-a-quantity $\rightarrow$ squared-linear-residual $\rightarrow$ sum) instantiated on strain instead of distance.
 
 \subsection{Where it genuinely diverges}
 
 Two differences are not cosmetic; they are where the real design work lives.
 
 \paragraph{1. The variable is a displacement (relative), not a position (absolute).}
-Geometric fidelity is a \emph{zeroth-order} property of one point; mechanical fidelity is
-a \emph{first-order} property---strain is a gradient, a \emph{difference} of
-displacements. A single vertex's displacement determines no strain by itself. This is why
-geometric QEM can collapse a vertex's incident faces into one portable $3\times3$ form on
-that vertex's coordinate, but mechanics cannot: each element's quadric lives on its whole
-stencil, and adjacent quadrics couple through shared DOFs. The additive structure still
-exists---it is finite-element assembly---but it lives on the \emph{full} displacement
-vector and never reduces to a per-vertex form. That coupling \emph{is} the mechanics; any
-reduction that discards it discards what we are trying to preserve.
+Geometric fidelity is a \emph{zeroth-order} property of one point; mechanical fidelity is a \emph{first-order} property---strain is a gradient, a \emph{difference} of displacements.
+A single vertex's displacement determines no strain by itself.
+This is why geometric QEM can collapse a vertex's incident faces into one portable $3\times3$ form on that vertex's coordinate, but mechanics cannot: each element's quadric lives on its whole stencil, and adjacent quadrics couple through shared DOFs.
+The additive structure still exists---it is finite-element assembly---but it lives on the \emph{full} displacement vector and never reduces to a per-vertex form.
+That coupling \emph{is} the mechanics; any reduction that discards it discards what we are trying to preserve.
 
 \paragraph{2. The face quadric is a \emph{response template}, not yet an \emph{error}.}
-In geometric QEM the same quadric does double duty: it describes the plane \emph{and},
-evaluated at the moved point, yields the error---because the original surface has zero
-distance to its own planes, so any post-collapse distance \emph{is} the error.
-Mechanically, $K_e$ describes the response, but the simplification error is the
-\textbf{discrepancy} between fine and coarse response, which is not zero-referenced.
-Concretely, with a prolongation $S$ mapping coarse displacements to fine ones, the
-mechanically-exact coarse operator is the Galerkin form
+In geometric QEM the same quadric does double duty: it describes the plane \emph{and}, evaluated at the moved point, yields the error---because the original surface has zero distance to its own planes, so any post-collapse distance \emph{is} the error.
+Mechanically, $K_e$ describes the response, but the simplification error is the \textbf{discrepancy} between fine and coarse response, which is not zero-referenced.
+Concretely, with a prolongation $S$ mapping coarse displacements to fine ones, the mechanically-exact coarse operator is the Galerkin form
 \begin{equation}
   K_c = S^T K_f\,S,
 \end{equation}
-i.e.\ the fine-energy Hessian $K_f$ \emph{restricted} to the coarse displacement space
-(a congruence reduction $S^T(\cdot)S$). The collapse error is how far the actual coarse
-$K_c$ deviates from it---measured \emph{on some set of deformations}. The probe quadric
-$G=V^TKV$ below is the same move with a different map $V$: restrict the Hessian to a small,
-fixed probe space instead of to the coarse mesh.
+and the collapse error is how far the actual coarse $K_c$ deviates from it---measured \emph{on some set of deformations}.
 
-That last phrase is the real fork: \textbf{which deformations do we probe the discrepancy
-on?} This is the mechanical counterpart of ``which planes matter,'' and it is where
-``responsiveness'' gets \emph{defined}:
+That last phrase is the real fork: \textbf{which deformations do we probe the discrepancy on?}
+This is the mechanical counterpart of ``which planes matter,'' and it is where ``responsiveness'' gets \emph{defined}:
 \begin{itemize}
-  \item \textbf{affine / linear displacement modes} $\rightarrow$ preserves the effective
-        (homogenized) stiffness;
-  \item \textbf{low-frequency eigenmodes of $K$} $\rightarrow$ preserves global compliance
-        / vibration response;
-  \item \textbf{a known load subspace} $\rightarrow$ preserves response to the loads we
-        actually care about.
+  \item \textbf{affine / linear displacement modes} $\rightarrow$ preserves the effective (homogenized) stiffness;
+  \item \textbf{low-frequency eigenmodes of $K$} $\rightarrow$ preserves global compliance / vibration response;
+  \item \textbf{a known load subspace} $\rightarrow$ preserves response to the loads we actually care about.
 \end{itemize}
-Choosing that probe subspace is what eventually lets us reduce the coupled assembly back
-down to a small, portable, QEM-shaped quadric---i.e.\ it is the principled route to
-additivity, rather than a hack imposed up front.
-The remaining subsections develop this
-program: we first establish \emph{why} the relative-displacement quadric resists
-per-vertex reduction, then identify the two tools that buy reducibility back---static
-condensation (Schur complement) for exact static fidelity, and a probe subspace for true
-QEM portability---and finally show how the probe choice dials the mechanical quadric
-between geometric QEM and an attribute-quadric.
+Choosing that probe subspace is what eventually lets us reduce the coupled assembly back down to a small, portable, QEM-shaped quadric---i.e.\ it is the principled route to additivity, rather than a hack imposed up front.
+The remaining subsections develop this program: we first establish \emph{why} the relative-displacement quadric resists per-vertex reduction, then identify the two tools that buy reducibility back---static condensation (Schur complement) for exact static fidelity, and a probe subspace for true QEM portability---and finally show how the probe choice dials the mechanical quadric between geometric QEM and an attribute-quadric.
 
 \subsection{Why the mechanical quadric resists per-vertex reduction}
 
-Geometric QEM reduces to a portable $4\times4$ form per vertex for two reasons, and
-mechanics violates both.
+Geometric QEM reduces to a portable $4\times4$ form per vertex for two reasons, and mechanics violates both.
 \begin{itemize}
   \item \textbf{The residual is linear in a \emph{single} vertex's coordinate.}
-        $r_f(\mathbf{x}) = \mathbf{n}^T\mathbf{x}+d$ involves one point. Strain
-        $\boldsymbol\varepsilon = B\mathbf{d}$ is a discrete gradient---a \emph{difference}
-        $\sim(\mathbf{u}_j-\mathbf{u}_i)/\ell$. A single node's displacement determines no
-        strain, so the smallest object on which the residual is even defined is the element
-        stencil, not a vertex.
-  \item \textbf{The coefficients are frozen.} The plane $(\mathbf{n},d)$ is a constant
-        reference baked in once at preprocessing. Mechanics has no frozen target
-        displacement: the rest state stores zero energy, but so does \emph{every} rigid
-        motion of it. The ``correct set'' is a whole null space (the rigid-body modes), not
-        a point.
+        $r_f(\mathbf{x}) = \mathbf{n}^T\mathbf{x}+d$ involves one point.
+        Strain $\boldsymbol\varepsilon = B\mathbf{d}$ is a discrete gradient---a \emph{difference} $\sim(\mathbf{u}_j-\mathbf{u}_i)/\ell$.
+        A single node's displacement determines no strain, so the smallest object on which the residual is even defined is the element stencil, not a vertex.
+  \item \textbf{The coefficients are frozen.}
+        The plane $(\mathbf{n},d)$ is a constant reference baked in once at preprocessing.
+        Mechanics has no frozen target displacement: the rest state stores zero energy, but so does \emph{every} rigid motion of it.
+        The ``correct set'' is a whole null space (the rigid-body modes), not a point.
 \end{itemize}
-So the honest answer is that the mechanical quadric \textbf{does not reduce to a per-vertex
-form in general}---this is exactly divergence~1 above. The quadric is irreducibly the
-element form $K_e\in\mathbb{R}^{9\times9}$, and ``accumulation'' is finite-element assembly
-$K=\sum_e K_e$ on the \emph{global} DOF vector. Reducibility can only be bought back in one
-of two ways:
+So the honest answer is that the mechanical quadric \textbf{does not reduce to a per-vertex form in general}---this is exactly divergence~1 above.
+The quadric is irreducibly the element form $K_e\in\mathbb{R}^{9\times9}$, and ``accumulation'' is finite-element assembly $K=\sum_e K_e$ on the \emph{global} DOF vector.
+Reducibility can only be bought back in one of two ways:
 \begin{itemize}
-  \item \textbf{Eliminate the vanishing DOF exactly} (Schur complement, \S\,below): keeps
-        the full static response on the survivors; pays in fill-in.
-  \item \textbf{Restrict to a frozen, per-vertex-factorable reference} (probe subspace,
-        \S\,below): recovers a literal per-vertex additive quadric; pays in off-probe
-        response.
+  \item \textbf{Eliminate the vanishing DOF exactly} (Schur complement, \S\,below): keeps the full static response on the survivors; pays in fill-in.
+  \item \textbf{Restrict to a frozen, per-vertex-factorable reference} (probe subspace, \S\,below): recovers a literal per-vertex additive quadric; pays in off-probe response.
 \end{itemize}
 
 \subsection{Schur complement: the mechanically-exact collapse operator}
 
-An edge collapse \emph{removes} degrees of freedom, and static condensation is the exact
-way to remove DOFs while preserving the response on what remains. Partition the global DOFs
-into \emph{retained} ($r$) and \emph{eliminated} ($e$, the disappearing vertex's three
-DOFs),
+An edge collapse \emph{removes} degrees of freedom, and static condensation is the exact way to remove DOFs while preserving the response on what remains.
+Partition the global DOFs into \emph{retained} ($r$) and \emph{eliminated} ($e$, the disappearing vertex's three DOFs),
 \begin{equation}
   K = \begin{pmatrix} K_{rr} & K_{re} \\ K_{er} & K_{ee} \end{pmatrix}.
 \end{equation}
-With no load on the eliminated DOFs they equilibrate to
-$\mathbf{d}_e = -K_{ee}^{-1}K_{er}\mathbf{d}_r$, and the energy becomes
+With no load on the eliminated DOFs they equilibrate to $\mathbf{d}_e = -K_{ee}^{-1}K_{er}\mathbf{d}_r$, and the energy becomes
 \begin{equation}
   \tfrac12\mathbf{d}^T K\mathbf{d}
     = \tfrac12\,\mathbf{d}_r^T\,\widehat{K}_{rr}\,\mathbf{d}_r,
   \qquad
   \widehat{K}_{rr} = K_{rr} - K_{re}K_{ee}^{-1}K_{er},
 \end{equation}
-where $\widehat{K}_{rr}$ is the \textbf{Schur complement}. Three facts make this the right
-object:
+where $\widehat{K}_{rr}$ is the \textbf{Schur complement}.
+Three facts make this the right object:
 \begin{itemize}
   \item \textbf{It is the Galerkin operator with the \emph{optimal} prolongation.}
-        $\widehat{K}_{rr} = S^T K_f S$ when $S$ is the \emph{harmonic extension}
-        (eliminated DOFs interpolated to minimize energy). So the Schur complement is not an
-        alternative to $K_c = S^T K_f S$; it is the best-case $K_c$. Any actual collapse
-        uses a simpler prolongation, and the collapse error is precisely
-        $\|S_{\text{actual}}^T K_f S_{\text{actual}} - \widehat{K}_{rr}\|$.
-  \item \textbf{It is local.} $K_{er}$ is nonzero only on the $1$-ring (FEM sparsity), so
-        $\widehat{K}_{rr}$ differs from $K_{rr}$ only inside the $1$-ring. Eliminating a
-        vertex is a $1$-ring operation---the locality QEM requires.
-  \item \textbf{The error has a name: fill-in.} The correction
-        $-K_{re}K_{ee}^{-1}K_{er}$ is a dense block coupling the neighbors of the
-        eliminated vertex---Gaussian-elimination fill-in. Structurally, ``mechanical QEM''
-        is approximate sparse Cholesky / algebraic-multigrid coarsening, and the quadric
-        error of a collapse is the magnitude of the fill-in one refuses to store.
+        $\widehat{K}_{rr} = S^T K_f S$ when $S$ is the \emph{harmonic extension} (eliminated DOFs interpolated to minimize energy).
+        So the Schur complement is not an alternative to $K_c = S^T K_f S$; it is the best-case $K_c$.
+        Any actual collapse uses a simpler prolongation, and the collapse error is precisely $\|S_{\text{actual}}^T K_f S_{\text{actual}} - \widehat{K}_{rr}\|$.
+  \item \textbf{It is local.}
+        $K_{er}$ is nonzero only on the $1$-ring (FEM sparsity), so $\widehat{K}_{rr}$ differs from $K_{rr}$ only inside the $1$-ring.
+        Eliminating a vertex is a $1$-ring operation---the locality QEM requires.
+  \item \textbf{The error has a name: fill-in.}
+        The correction $-K_{re}K_{ee}^{-1}K_{er}$ is a dense block coupling the neighbors of the eliminated vertex---Gaussian-elimination fill-in.
+        Structurally, ``mechanical QEM'' is approximate sparse Cholesky / algebraic-multigrid coarsening, and the quadric error of a collapse is the magnitude of the fill-in one refuses to store.
 \end{itemize}
 
 \subsection{Edge collapse as common-mode retention}
 
-The collapse $(v_i,v_j)\to v^\star$ leaves the \emph{link} (the boundary of the edge's
-$1$-ring) unchanged: same outer vertices, same outer edges. Only the interior is re-wired.
-Mechanically, the boundary DOFs are fixed shared data, so the collapse is a local problem
-with the link as a \textbf{Dirichlet boundary} and the merged vertex as the only free
-interior DOF---exactly what the Schur complement needs.
+The collapse $(v_i,v_j)\to v^\star$ leaves the \emph{link} (the boundary of the edge's $1$-ring) unchanged: same outer vertices, same outer edges.
+Only the interior is re-wired.
+Mechanically, the boundary DOFs are fixed shared data, so the collapse is a local problem with the link as a \textbf{Dirichlet boundary} and the merged vertex as the only free interior DOF---exactly what the Schur complement needs.
 
-To make ``the two vertices wiggle as one'' precise, change basis on the pair into a
-\textbf{common mode} and a \textbf{differential mode},
+To make ``the two vertices wiggle as one'' precise, change basis on the pair into a \textbf{common mode} and a \textbf{differential mode},
 \begin{align*}
   \mathbf{d}_+ &= \tfrac12(\mathbf{d}_i + \mathbf{d}_j)
     \quad(\text{move together}),
@@ -229,49 +172,34 @@ To make ``the two vertices wiggle as one'' precise, change basis on the pair int
   \mathbf{d}_- &= \mathbf{d}_i - \mathbf{d}_j
     \quad(\text{stretch/shear the edge}).
 \end{align*}
-Two free vertices ($6$ DOF) split into $3$ common $+$ $3$ differential. The collapse
-\textbf{keeps the common mode} ($\mathbf{d}^\star\leftrightarrow\mathbf{d}_+$) and
-\textbf{removes the differential mode}---this is the $6\to3$ reduction. Hence the faithful
-condition:
+Two free vertices ($6$ DOF) split into $3$ common $+$ $3$ differential.
+The collapse \textbf{keeps the common mode} ($\mathbf{d}^\star\leftrightarrow\mathbf{d}_+$) and \textbf{removes the differential mode}---this is the $6\to3$ reduction.
+Hence the faithful condition:
 \begin{quote}
-  The collapse is faithful iff, on the probe deformations, the differential mode
-  $\mathbf{d}_-$ is unexcited---i.e.\ $v_i$ and $v_j$ were already moving together. The
-  collapse cost is the elastic energy that lived in $\mathbf{d}_-$.
+  The collapse is faithful iff, on the probe deformations, the differential mode $\mathbf{d}_-$ is unexcited---i.e.\ $v_i$ and $v_j$ were already moving together.
+  The collapse cost is the elastic energy that lived in $\mathbf{d}_-$.
 \end{quote}
-Under a smooth probe field, adjacent vertices displace almost equally, so
-$\mathbf{d}_-\approx 0$ and the collapse is cheap; this is why short edges in smooth regions
-coarsen safely. It is also exactly algebraic-multigrid aggregation: lump together DOFs whose
-relative motion is unexcited.
+Under a smooth probe field, adjacent vertices displace almost equally, so $\mathbf{d}_-\approx 0$ and the collapse is cheap; this is why short edges in smooth regions coarsen safely.
+It is also exactly algebraic-multigrid aggregation: lump together DOFs whose relative motion is unexcited.
 
-There are two distinct ways to remove $\mathbf{d}_-$, and the gap between them \emph{is} the
-error:
+There are two distinct ways to remove $\mathbf{d}_-$, and the gap between them \emph{is} the error:
 \begin{itemize}
-  \item \textbf{Restriction (what the collapse literally does):} set $\mathbf{d}_-=0$ and
-        duplicate, $\mathbf{d}_i=\mathbf{d}_j=\mathbf{d}^\star$. Freezing a DOF can only
-        \emph{add} stiffness, so a collapsed edge is always at least as stiff as the
-        original on any retained motion.
-  \item \textbf{Condensation (the ideal):} let $\mathbf{d}_-$ relax to its
-        energy-minimizing value given the boundary $\mathbf{d}_b$ and common mode,
+  \item \textbf{Restriction (what the collapse literally does):} set $\mathbf{d}_-=0$ and duplicate, $\mathbf{d}_i=\mathbf{d}_j=\mathbf{d}^\star$.
+        Freezing a DOF can only \emph{add} stiffness, so a collapsed edge is always at least as stiff as the original on any retained motion.
+  \item \textbf{Condensation (the ideal):} let $\mathbf{d}_-$ relax to its energy-minimizing value given the boundary $\mathbf{d}_b$ and common mode,
         \begin{equation}
           \mathbf{d}_-^\star
             = -K_{--}^{-1}\big(K_{-+}\mathbf{d}_+ + K_{-b}\mathbf{d}_b\big),
         \end{equation}
-        which preserves the static response exactly (the Schur complement of the
-        differential block).
+        which preserves the static response exactly (the Schur complement of the differential block).
 \end{itemize}
-The error is the gap between $\mathbf{d}_-=0$ and $\mathbf{d}_-=\mathbf{d}_-^\star$---the
-energy recoverable by relaxing rather than freezing the edge. The merged position
-$\mathbf{x}^\star$ (and the prolongation) is the one knob: choose it so the single vertex's
-wiggle reproduces what the pair actually did, i.e.\ so that $\mathbf{d}_-^\star$ is small on
-the probe. That \emph{is} the QEM minimization, restated.
+The error is the gap between $\mathbf{d}_-=0$ and $\mathbf{d}_-=\mathbf{d}_-^\star$---the energy recoverable by relaxing rather than freezing the edge.
+The merged position $\mathbf{x}^\star$ (and the prolongation) is the one knob: choose it so the single vertex's wiggle reproduces what the pair actually did, i.e.\ so that $\mathbf{d}_-^\star$ is small on the probe.
+That \emph{is} the QEM minimization, restated.
 
-\paragraph{Caveat.} ``Boundary same, interior re-wired'' is right for connectivity, but
-three energy terms change, and only the first is the differential mode: (i) the relative
-stretch/shear stored across the ring (the $\mathbf{d}_-$ energy---the main term); (ii) the
-two collapsing triangles' own membrane and hinge energy (they go to zero area and vanish);
-(iii) the dihedral angles of every ring edge shift, so the bending references in the ring
-move. The differential-mode picture captures (i); (ii)--(iii) are why bending wants to be
-re-evaluated at the collapse step, not frozen.
+\paragraph{Caveat.}
+``Boundary same, interior re-wired'' is right for connectivity, but three energy terms change, and only the first is the differential mode: (i) the relative stretch/shear stored across the ring (the $\mathbf{d}_-$ energy---the main term); (ii) the two collapsing triangles' own membrane and hinge energy (they go to zero area and vanish); (iii) the dihedral angles of every ring edge shift, so the bending references in the ring move.
+The differential-mode picture captures (i); (ii)--(iii) are why bending wants to be re-evaluated at the collapse step, not frozen.
 
 \subsection{Stretching and bending: triangle quadrics versus edge quadrics}
 
@@ -288,184 +216,126 @@ bending (dihedral hinge) & interior edge & 4 verts / 12 DOF & $1$ \\
 \hline
 \end{tabular}
 \end{center}
-\noindent So bending enters at the \textbf{edge step}, as its own element family---not at
-the triangle step. Two ways to handle it:
+\noindent So bending enters at the \textbf{edge step}, as its own element family---not at the triangle step.
+Two ways to handle it:
 \begin{itemize}
-  \item \textbf{Assembly view (recommended).} Assemble
-        $K = \sum_{\text{tri}} K_e^{\text{stretch}} + \sum_{\text{edge}} K_e^{\text{bend}}$.
-        Both families write into the $1$-ring blocks of the global operator, and the
-        collapse (Schur or probe-reduction) operates on the \emph{merged} local operator.
-        There is no ``triangle vs.\ edge step'' to decide because assembly already unifies
-        them.
-  \item \textbf{Garland-style per-vertex accumulation (if wanted for scoring).} Stretching
-        distributes to its $3$ vertices like standard QEM; bending distributes to the
-        hinge's $4$ stencil vertices (or its $2$ endpoints). But bending must be
-        \emph{re-evaluated} at the collapse step, not frozen: a triangle's plane is
-        collapse-invariant, whereas collapsing one edge perturbs the dihedral angle of every
-        edge in the $1$-ring. Bending is therefore more fragile than stretching, with a
-        wider stencil and a moving reference.
+  \item \textbf{Assembly view (recommended).}
+        Assemble $K = \sum_{\text{tri}} K_e^{\text{stretch}} + \sum_{\text{edge}} K_e^{\text{bend}}$.
+        Both families write into the $1$-ring blocks of the global operator, and the collapse (Schur or probe-reduction) operates on the \emph{merged} local operator.
+        There is no ``triangle vs.\ edge step'' to decide because assembly already unifies them.
+  \item \textbf{Garland-style per-vertex accumulation (if wanted for scoring).}
+        Stretching distributes to its $3$ vertices like standard QEM; bending distributes to the hinge's $4$ stencil vertices (or its $2$ endpoints).
+        But bending must be \emph{re-evaluated} at the collapse step, not frozen: a triangle's plane is collapse-invariant, whereas collapsing one edge perturbs the dihedral angle of every edge in the $1$-ring.
+        Bending is therefore more fragile than stretching, with a wider stencil and a moving reference.
 \end{itemize}
-A deeper point connects to the probe discussion: \textbf{bending is invisible to
-constant-strain (affine) deformation.} A flat patch under uniform in-plane strain does not
-bend; bending is a second-derivative (curvature) quantity. So whether bending enters the
-cost at all depends on the probe subspace---preserving bending requires enriching the probe
-with quadratic (constant-curvature) modes $\mathbf{u}(X)=\tfrac12 X^T H X + FX + \mathbf{c}$.
+A deeper point connects to the probe discussion: \textbf{bending is invisible to constant-strain (affine) deformation.}
+A flat patch under uniform in-plane strain does not bend; bending is a second-derivative (curvature) quantity.
+So whether bending enters the cost at all depends on the probe subspace---preserving bending requires enriching the probe with quadratic (constant-curvature) modes $\mathbf{u}(X)=\tfrac12 X^T H X + FX + \mathbf{c}$.
 
 \subsection{Affine probes and the homogenization patch test}
 
-Take the probe subspace to be the \textbf{affine displacement fields}
-$\mathbf{u}(X) = FX + \mathbf{c}$ with $F\in\mathbb{R}^{3\times3}$ constant. A constant-$F$
-field produces \emph{constant strain} everywhere; the symmetric part of $F$ is strain, the
-skew part is infinitesimal rotation, and $\mathbf{c}$ is translation (the last two are
-rigid, zero-energy). The energetic content is the six independent constant-strain modes,
-and the energy stored under a uniform macroscopic strain $\bar{\boldsymbol\varepsilon}$
-\emph{is the definition} of the effective modulus,
+Take the probe subspace to be the \textbf{affine displacement fields} $\mathbf{u}(X) = FX + \mathbf{c}$ with $F\in\mathbb{R}^{3\times3}$ constant.
+A constant-$F$ field produces \emph{constant strain} everywhere; the symmetric part of $F$ is strain, the skew part is infinitesimal rotation, and $\mathbf{c}$ is translation (the last two are rigid, zero-energy).
+The energetic content is the six independent constant-strain modes, and the energy stored under a uniform macroscopic strain $\bar{\boldsymbol\varepsilon}$ \emph{is the definition} of the effective modulus,
 \begin{equation}
   \tfrac12\,\bar{\boldsymbol\varepsilon}^T C^{\text{eff}}\,\bar{\boldsymbol\varepsilon}
     \cdot \mathrm{Vol} = \text{(total stored energy)}.
 \end{equation}
-Concretely, let the columns of $A$ be the affine modes sampled at the nodes. Then
+Concretely, let the columns of $A$ be the affine modes sampled at the nodes.
+Then
 \begin{equation}
   \text{``preserve effective stiffness''}
   \Longleftrightarrow
   A^T K_c A = A^T K_f A \ \text{on the patch,}
 \end{equation}
-which is precisely the finite-element \textbf{patch test}. This is the weakest but most
-robust target: a six-dimensional subspace guaranteeing the coarse mesh is neither
-artificially stiffer nor softer in bulk. It is blind to bending (see above), which is why
-the eigenmode and load-subspace probes of the dictionary are needed when bending or
-task-specific compliance matters.
+which is precisely the finite-element \textbf{patch test}.
+This is the weakest but most robust target: a six-dimensional subspace guaranteeing the coarse mesh is neither artificially stiffer nor softer in bulk.
+It is blind to bending (see above), which is why the eigenmode and load-subspace probes of the dictionary are needed when bending or task-specific compliance matters.
 
 \subsection{Reduction to an additive per-vertex quadric}
 
-The payoff: committing to an affine probe \emph{collapses the irreducible coupling}, because
-an affine field \textbf{factors through each vertex's own position}---reintroducing the
-frozen, single-vertex reference that \S\,(why the quadric resists reduction) said mechanics
-lacked. With $\mathbf{a} = (\mathrm{vec}(F),\mathbf{c})\in\mathbb{R}^{12}$, the displacement
-at node $n$ is
+The payoff: committing to an affine probe \emph{collapses the irreducible coupling}, because an affine field \textbf{factors through each vertex's own position}---reintroducing the frozen, single-vertex reference that \S\,(why the quadric resists reduction) said mechanics lacked.
+With $\mathbf{a} = (\mathrm{vec}(F),\mathbf{c})\in\mathbb{R}^{12}$, the displacement at node $n$ is
 \begin{equation}
   \mathbf{d}_n = F X_n + \mathbf{c}
     = \underbrace{[\,X_n^T\otimes I_3 \mid I_3\,]}_{P(X_n)\,\in\,\mathbb{R}^{3\times12}}
       \,\mathbf{a},
 \end{equation}
-depending only on node $n$'s rest position. The per-element probe energy is therefore
+depending only on node $n$'s rest position.
+The per-element probe energy is therefore
 \begin{equation}
   W_e(\mathbf{a}) = \tfrac12\,\mathbf{a}^T G_e\,\mathbf{a},
   \
   G_e = V_e^T K_e V_e \in \mathbb{R}^{12\times12},
   \
-  V_e = \begin{bmatrix} P(X_{n_1}) \\ P(X_{n_2}) \\ P(X_{n_3}) \end{bmatrix}.
+  V_e = \begin{bmatrix} P(X_{n_1}) \\ P(X_{n_2}) \\ P(X_{n_3}) \end{bmatrix},
 \end{equation}
-Two objects are worth naming. \textbf{$V_e$ is the probe sampler}: stacking $P(X_n)$ over
-the element's nodes, it turns the $12$ affine parameters $\mathbf{a}$ into the element's $9$
-nodal displacements, $\mathbf{d}=V_e\mathbf{a}$---a fixed linear map read off the rest
-geometry alone (``evaluate this affine field at my corners''). \textbf{$G_e=V_e^T K_e V_e$
-is then the element Hessian $K_e$ restricted to the affine subspace}: substitute
-$\mathbf{d}=V_e\mathbf{a}$ into $\tfrac12\mathbf{d}^TK_e\mathbf{d}$ and the energy becomes
-$\tfrac12\mathbf{a}^TG_e\mathbf{a}$. So $G_e$ is just $K_e$ \emph{seen through the probe}---the
-stiffness the element shows against uniform strains---compressed from the awkward $9\times9$
-stencil form to a portable $12\times12$ that lives in the same coordinates for every element.
-The global probe stiffness $G = \sum_e G_e$ is the assembled Hessian under the same
-restriction: it \textbf{accumulates additively over elements}---a small, fixed-size
-($12\times12$, effective rank $6$, its null space the rigid modes), positive semi-definite
-object that \emph{is} the homogenized stiffness in probe coordinates. The collapse cost is
-the deviation of $G$ from its frozen fine-mesh target,
+and the global probe stiffness $G = \sum_e G_e$ \textbf{accumulates additively over elements}---a small, fixed-size ($12\times12$, effective rank $6$), positive semi-definite object that \emph{is} the homogenized stiffness in probe coordinates.
+The collapse cost is the deviation of $G$ from its frozen fine-mesh target,
 \begin{equation}
   E_{\text{collapse}}(\mathbf{x}^\star)
     = \big\| G_{\text{fine}} - G_{\text{after}}(\mathbf{x}^\star) \big\|_W^2
     = \Big\| \sum_{e\,\in\,\text{affected}}
         \big( G_e^{\text{old}} - G_e^{\text{new}}(\mathbf{x}^\star) \big) \Big\|_W^2,
 \end{equation}
-which is local, additive, fixed-size, and minimized over the merged position
-$\mathbf{x}^\star$---structurally identical to a QEM scoring step. This is the Li-style
-reduction: where Li attaches a fixed-size additive quadric $[\mathbf{p},\mathbf{u}]$ to each
-vertex, here the per-vertex ``attribute'' is the vertex's probe-response signature, and the
-metric is the energy metric $D$ rather than the identity.
+which is local, additive, fixed-size, and minimized over the merged position $\mathbf{x}^\star$---structurally identical to a QEM scoring step.
+This is the Li-style reduction: where Li attaches a fixed-size additive quadric $[\mathbf{p},\mathbf{u}]$ to each vertex, here the per-vertex ``attribute'' is the vertex's probe-response signature, and the metric is the energy metric $D$ rather than the identity.
 
-\paragraph{The unifying picture.} The probe subspace dials the mechanical quadric between
-two known forms:
+\paragraph{The unifying picture.}
+The probe subspace dials the mechanical quadric between two known forms:
 \begin{itemize}
-  \item \textbf{probe $=$ affine modes} $\rightarrow$ the signature is determined by
-        position $\rightarrow$ the quadric reduces to (essentially) geometric QEM reweighted
-        by the constitutive metric $D$; preserving homogenized stiffness under affine modes
-        is mostly preserving area/shape, which geometric QEM already does;
-  \item \textbf{probe $=$ low-frequency eigenmodes} $\rightarrow$ the signature is the
-        mode-shape value per vertex $\rightarrow$ exactly Li's attribute quadric, but with
-        the elastic mode shape as attribute and energy as metric---Nakagawa \& Kanai's
-        ``modal strain as saliency'' turned into an actual quadric.
+  \item \textbf{probe $=$ affine modes} $\rightarrow$ the signature is determined by position $\rightarrow$ the quadric reduces to (essentially) geometric QEM reweighted by the constitutive metric $D$; preserving homogenized stiffness under affine modes is mostly preserving area/shape, which geometric QEM already does;
+  \item \textbf{probe $=$ low-frequency eigenmodes} $\rightarrow$ the signature is the mode-shape value per vertex $\rightarrow$ exactly Li's attribute quadric, but with the elastic mode shape as attribute and energy as metric---Nakagawa \& Kanai's ``modal strain as saliency'' turned into an actual quadric.
 \end{itemize}
-The mechanical $K_e$-in-the-$D$-metric is the energy-metric generalization that contains
-both as probe-subspace special cases, with the Schur complement as the exact,
-full-space limit.
+The mechanical $K_e$-in-the-$D$-metric is the energy-metric generalization that contains both as probe-subspace special cases, with the Schur complement as the exact, full-space limit.
 
-\paragraph{Two honest caveats.} (i) $G_e(\mathbf{x}^\star)$ is not \emph{exactly} quadratic
-in $\mathbf{x}^\star$, because moving the rest vertex changes $B$, the area, and hence $K_e$
-nonlinearly; either freeze the fine reference and accept an approximate quadratic, or
-evaluate at candidate placements (midpoint/endpoints) and take the minimum, as many QEM
-variants do. (ii) The bargain is identical to geometric QEM's: response is preserved
-\emph{within the probe subspace only}---off-probe (higher-frequency, non-affine) response is
-discarded, just as geometric QEM preserves flatness but not higher-order curvature.
+\paragraph{Two honest caveats.}
+(i) $G_e(\mathbf{x}^\star)$ is not \emph{exactly} quadratic in $\mathbf{x}^\star$, because moving the rest vertex changes $B$, the area, and hence $K_e$ nonlinearly; either freeze the fine reference and accept an approximate quadratic, or evaluate at candidate placements (midpoint/endpoints) and take the minimum, as many QEM variants do.
+(ii) The bargain is identical to geometric QEM's: response is preserved \emph{within the probe subspace only}---off-probe (higher-frequency, non-affine) response is discarded, just as geometric QEM preserves flatness but not higher-order curvature.
 
 \subsection{The proposed pipeline}
 
-We can now assemble the pieces into an end-to-end, QEM-shaped decimation pipeline. The
-one-line summary: \emph{it is QEM, but the face quadric is replaced by the element stiffness
-projected into a probe subspace ($G_e = V_e^T K_e V_e$), accumulated additively per vertex;
-an edge collapse is priced by how much homogenized response on the probe it destroys
----equivalently, the energy in the differential mode it freezes out---and the merged vertex
-is placed to minimize that loss.}
+We can now assemble the pieces into an end-to-end, QEM-shaped decimation pipeline.
+The one-line summary: \emph{it is QEM, but the face quadric is replaced by the element stiffness projected into a probe subspace ($G_e = V_e^T K_e V_e$), accumulated additively per vertex; an edge collapse is priced by how much homogenized response on the probe it destroys ---equivalently, the energy in the differential mode it freezes out---and the merged vertex is placed to minimize that loss.}
 
-\paragraph{Phase 0 --- assemble the mechanical model.} On the fine mesh, assemble the two
-element families into the global operator,
+\paragraph{Phase 0 --- assemble the mechanical model.}
+On the fine mesh, assemble the two element families into the global operator,
 \begin{equation}
   K_f = \underbrace{\sum_{\text{tri}} A t\,B^T D B}_{\text{stretching (rank 3)}}
       \;+\; \underbrace{\sum_{\text{edge}} \tfrac12\,c\,\mathbf{g}\mathbf{g}^T}_{\text{bending hinge (rank 1)}}.
 \end{equation}
-This is the assembly view: both families write into the $1$-ring blocks; no
-``triangle-vs-edge step'' decision is needed.
+This is the assembly view: both families write into the $1$-ring blocks; no ``triangle-vs-edge step'' decision is needed.
 
-\paragraph{Phase 1 --- choose the probe subspace $V$.} This is where ``responsiveness'' is
-\emph{defined}.
+\paragraph{Phase 1 --- choose the probe subspace $V$.}
+This is where ``responsiveness'' is \emph{defined}.
 \begin{itemize}
-  \item \textbf{Default:} the six affine / constant-strain modes $\rightarrow$ preserves the
-        homogenized membrane stiffness (the patch test).
-  \item \textbf{If bending matters:} enrich with the constant-curvature (quadratic) modes
-        $\mathbf{u}(X)=\tfrac12 X^T H X + FX + \mathbf{c}$---affine probes are blind to bending.
-  \item \textbf{If global compliance / known loads matter:} append low-frequency eigenmodes
-        of $K_f$ or the load subspace.
+  \item \textbf{Default:} the six affine / constant-strain modes $\rightarrow$ preserves the homogenized membrane stiffness (the patch test).
+  \item \textbf{If bending matters:} enrich with the constant-curvature (quadratic) modes $\mathbf{u}(X)=\tfrac12 X^T H X + FX + \mathbf{c}$---affine probes are blind to bending.
+  \item \textbf{If global compliance / known loads matter:} append low-frequency eigenmodes of $K_f$ or the load subspace.
 \end{itemize}
 
-\paragraph{Phase 2 --- build the mechanics-aware quadric (precompute).} Per element, project
-the stiffness into probe coordinates, $G_e = V_e^T K_e V_e$, with $V_e$ sampling the probe
-modes at the element's nodes through each node's rest position $P(X_n)$. Accumulate
-additively to vertices, $G_v = \sum_{e \ni v} G_e$---the direct analog of QEM face-quadric
-accumulation---and freeze the fine-mesh target $G_{\text{fine}}$.
+\paragraph{Phase 2 --- build the mechanics-aware quadric (precompute).}
+Per element, project the stiffness into probe coordinates, $G_e = V_e^T K_e V_e$, with $V_e$ sampling the probe modes at the element's nodes through each node's rest position $P(X_n)$.
+Accumulate additively to vertices, $G_v = \sum_{e \ni v} G_e$---the direct analog of QEM face-quadric accumulation---and freeze the fine-mesh target $G_{\text{fine}}$.
 
-\paragraph{Phase 3 --- greedy edge-collapse decimation.} Run the standard QEM heap loop. For
-each candidate edge $(v_i, v_j)$:
+\paragraph{Phase 3 --- greedy edge-collapse decimation.}
+Run the standard QEM heap loop.
+For each candidate edge $(v_i, v_j)$:
 \begin{enumerate}
-  \item \textbf{Place} the merged vertex $\mathbf{x}^\star$ (and its probe signature) to
-        minimize the mechanical cost---choosing it so the single vertex reproduces what the
-        pair did on the probe, i.e.\ so the eliminated differential mode $\mathbf{d}_-$ stays
-        small.
+  \item \textbf{Place} the merged vertex $\mathbf{x}^\star$ (and its probe signature) to minimize the mechanical cost---choosing it so the single vertex reproduces what the pair did on the probe, i.e.\ so the eliminated differential mode $\mathbf{d}_-$ stays small.
   \item \textbf{Score} with the composite cost
         \begin{equation}
           C \;=\; \underbrace{\big\|G_{\text{after}}(\mathbf{x}^\star) - G_{\text{fine}}\big\|_W^2}_{E_{\text{mech}}\ \text{(probe response lost)}}
             \;+\; \gamma\,E_{\text{triq}} \;+\; \alpha\,E_{\text{geom}},
         \end{equation}
-        where $E_{\text{triq}}$ is the sliver penalty (required for a \emph{simulatable}
-        output, per Nakagawa \& Kanai's ablation) and $E_{\text{geom}}$ is optional standard
-        geometric QEM for visual fidelity.
-  \item \textbf{Collapse} the heap minimum and \textbf{re-evaluate bending in the whole
-        $1$-ring} (dihedral references move---bending is not collapse-invariant).
+        where $E_{\text{triq}}$ is the sliver penalty (required for a \emph{simulatable} output, per Nakagawa \& Kanai's ablation) and $E_{\text{geom}}$ is optional standard geometric QEM for visual fidelity.
+  \item \textbf{Collapse} the heap minimum and \textbf{re-evaluate bending in the whole $1$-ring} (dihedral references move---bending is not collapse-invariant).
 \end{enumerate}
-Repeat to the target element budget. The merged vertex carries a position $\mathbf{x}^\star$
-\emph{plus} a probe-response attribute---exactly Li's augmented vertex $[\mathbf{p},\mathbf{u}]$,
-except the attribute is the elastic probe signature and the metric is $D$ rather than the
-identity.
+Repeat to the target element budget.
+The merged vertex carries a position $\mathbf{x}^\star$ \emph{plus} a probe-response attribute---exactly Li's augmented vertex $[\mathbf{p},\mathbf{u}]$, except the attribute is the elastic probe signature and the metric is $D$ rather than the identity.
 
-\paragraph{Forks still open.} The pipeline has a default at each branch, but the following
-choices are genuine design/experiment forks:
+\paragraph{Forks still open.}
+The pipeline has a default at each branch, but the following choices are genuine design/experiment forks:
 \begin{center}
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{|p{0.24\linewidth}|p{0.42\linewidth}|p{0.24\linewidth}|}
@@ -485,22 +355,16 @@ metric $W$ & identity / energy-weighted / mode-importance & identity \\
 \hline
 \end{tabular}
 \end{center}
-Two checks de-risk the whole idea: (1) on a flat patch, the affine-probe additive quadric
-should reduce to roughly $D$-reweighted geometric QEM (sanity); (2) on a single $1$-ring,
-the additive cost should track the exact differential-mode Schur cost across collapse
-candidates (correctness).
+Two checks de-risk the whole idea: (1) on a flat patch, the affine-probe additive quadric should reduce to roughly $D$-reweighted geometric QEM (sanity); (2) on a single $1$-ring, the additive cost should track the exact differential-mode Schur cost across collapse candidates (correctness).
 
 \subsection{Dirty meshes and simplicial complexes}
 
-Real assets---a dress with dangling straps, lace, beads, non-manifold seams, disconnected
-trim---stress the pipeline at its foundation: assembly. The load-bearing fact is that
-\textbf{finite-element assembly is purely combinatorial and additive}: $K = \sum_e K_e$
-scatters each element's dense block into the global matrix indexed by that element's DOFs,
-and never asks whether an edge is manifold or a surface is closed. Everything below is a
-consequence of that, and of where the consequence frays.
+Real assets---a dress with dangling straps, lace, beads, non-manifold seams, disconnected trim---stress the pipeline at its foundation: assembly.
+The load-bearing fact is that \textbf{finite-element assembly is purely combinatorial and additive}: $K = \sum_e K_e$ scatters each element's dense block into the global matrix indexed by that element's DOFs, and never asks whether an edge is manifold or a surface is closed.
+Everything below is a consequence of that, and of where the consequence frays.
 
-\paragraph{Constructing $K$ on a dirty mesh.} Assembly always succeeds; the real content is
-the rule mapping each simplex to an element family, plus a convention at non-manifold edges.
+\paragraph{Constructing $K$ on a dirty mesh.}
+Assembly always succeeds; the real content is the rule mapping each simplex to an element family, plus a convention at non-manifold edges.
 \begin{center}
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{|p{0.30\linewidth}|p{0.30\linewidth}|p{0.30\linewidth}|}
@@ -517,316 +381,197 @@ $3$-cell (solid) & P1 tetrahedron & rank-$6$ solid strain \\
 \hline
 \end{tabular}
 \end{center}
-Membrane stiffness assembles per triangle no matter how triangles are connected (a
-non-manifold edge shared by $k$ panels just sums $k$ contributions into the shared DOFs). The
-bending hinge is where non-manifoldness bites: a boundary edge ($1$ triangle) has \emph{no}
-hinge (correct---a free hem has no bending partner), while a non-manifold edge ($k>2$
-triangles) has an \textbf{ambiguous} dihedral angle and needs an explicit convention (skip /
-sum all $\binom{k}{2}$ pairs / dominant pair). Dangling lower-dimensional simplices carry no
-membrane and must be given bar/point elements if they are to carry load.
+Membrane stiffness assembles per triangle no matter how triangles are connected (a non-manifold edge shared by $k$ panels just sums $k$ contributions into the shared DOFs).
+The bending hinge is where non-manifoldness bites: a boundary edge ($1$ triangle) has \emph{no} hinge (correct---a free hem has no bending partner), while a non-manifold edge ($k>2$ triangles) has an \textbf{ambiguous} dihedral angle and needs an explicit convention (skip / sum all $\binom{k}{2}$ pairs / dominant pair).
+Dangling lower-dimensional simplices carry no membrane and must be given bar/point elements if they are to carry load.
 
-\paragraph{Is the operator ``proper''?} ``Proper'' splits into four senses that come apart on
-dirty meshes.
+\paragraph{Is the operator ``proper''?}
+``Proper'' splits into four senses that come apart on dirty meshes.
 \begin{itemize}
-  \item \textbf{Symmetry $+$ PSD --- always holds.} Each $K_e$ is a $\tfrac12\|M\mathbf{d}\|^2$
-        form, so $K=\sum K_e$ is symmetric PSD regardless of mesh quality. It is always a
-        legitimate energy Hessian.
-  \item \textbf{Null space --- grows, and the growth is diagnostic.} For a clean connected
-        shell $\ker K$ is the six rigid modes. Each disconnected component adds six more;
-        under-constraint adds \emph{spurious} zero modes (an isolated bead; a flat
-        membrane patch, whose out-of-plane motion is zero-energy at linear order \emph{unless
-        bending is present}; CST's missing drilling DOF; a bowtie vertex's counter-rotating
-        cones). Hence bending is not optional for shells---it is what controls the
-        membrane null space.
-  \item \textbf{Conditioning --- dies on degeneracy.} Slivers give $K_e \sim 1/A \to \infty$:
-        meaningless strain and a catastrophic condition number. This is why the triangle-quality
-        term is load-bearing, not cosmetic.
-  \item \textbf{Continuum consistency --- genuinely fails at non-manifold junctions.} There is
-        no smooth $2$-manifold being discretized there, so ``convergence to the elasticity
-        PDE'' is undefined. The operator remains a legitimate \emph{discrete} elastic energy,
-        just not a Galerkin approximation of a shell.
+  \item \textbf{Symmetry $+$ PSD --- always holds.}
+        Each $K_e$ is a $\tfrac12\|M\mathbf{d}\|^2$ form, so $K=\sum K_e$ is symmetric PSD regardless of mesh quality.
+        It is always a legitimate energy Hessian.
+  \item \textbf{Null space --- grows, and the growth is diagnostic.}
+        For a clean connected shell $\ker K$ is the six rigid modes.
+        Each disconnected component adds six more; under-constraint adds \emph{spurious} zero modes (an isolated bead; a flat membrane patch, whose out-of-plane motion is zero-energy at linear order \emph{unless bending is present}; CST's missing drilling DOF; a bowtie vertex's counter-rotating cones).
+        Hence bending is not optional for shells---it is what controls the membrane null space.
+  \item \textbf{Conditioning --- dies on degeneracy.}
+        Slivers give $K_e \sim 1/A \to \infty$: meaningless strain and a catastrophic condition number.
+        This is why the triangle-quality term is load-bearing, not cosmetic.
+  \item \textbf{Continuum consistency --- genuinely fails at non-manifold junctions.}
+        There is no smooth $2$-manifold being discretized there, so ``convergence to the elasticity PDE'' is undefined.
+        The operator remains a legitimate \emph{discrete} elastic energy, just not a Galerkin approximation of a shell.
 \end{itemize}
-The key reconciliation: our target $A^T K_c A = A^T K_f A$ references the fine
-\emph{discrete} operator, so it stays well-defined even with no continuum limit. \textbf{The
-mechanical-QEM objective degrades gracefully}---we never needed the continuum claim. The
-fixes are exactly (i) a bending convention, (ii) null-space regularization, (iii) sliver
-cleanup, and (iii) is already in the cost.
+The key reconciliation: our target $A^T K_c A = A^T K_f A$ references the fine \emph{discrete} operator, so it stays well-defined even with no continuum limit.
+\textbf{The mechanical-QEM objective degrades gracefully}---we never needed the continuum claim.
+The fixes are exactly (i) a bending convention, (ii) null-space regularization, (iii) sliver cleanup, and (iii) is already in the cost.
 
-\paragraph{Collapse on simplicial complexes.} The three legs of the framework transfer
-off-manifold. Assembly is combinatorial ($\checkmark$); the cost is linear algebra on $K$
-($\checkmark$); and the affine probe still factors through vertex position at \emph{any}
-cell's nodes, so $G_e = V_e^T K_e V_e$ accumulates additively across mixed-dimensional cells
----\textbf{the per-vertex additive quadric survives unchanged}. Mixed cells couple
-automatically in assembly (a vertex shared by a panel and a strap sums both contributions),
-which is just the ``fold bending and stretching into the assembled operator'' decision
-generalized to bars and point masses. The topological scaffolding is prior art: Popovi\'c \&
-Hoppe's \emph{Progressive Simplicial Complexes} (1997) generalizes vertex-split/edge-collapse
-to arbitrary-dimension, arbitrary-topology complexes, and Garland \& Zhou's \emph{Quadric-Based
-Simplification in Any Dimension} (2005) already puts the \emph{geometric} quadric on
-$n$-simplices. The clean statement of our contribution: \textbf{inherit that contraction and
-quadric machinery and swap the geometric quadric for the mechanical one.} Two caveats remain:
+\paragraph{Collapse on simplicial complexes.}
+The three legs of the framework transfer off-manifold.
+Assembly is combinatorial ($\checkmark$); the cost is linear algebra on $K$ ($\checkmark$); and the affine probe still factors through vertex position at \emph{any} cell's nodes, so $G_e = V_e^T K_e V_e$ accumulates additively across mixed-dimensional cells ---\textbf{the per-vertex additive quadric survives unchanged}.
+Mixed cells couple automatically in assembly (a vertex shared by a panel and a strap sums both contributions), which is just the ``fold bending and stretching into the assembled operator'' decision generalized to bars and point masses.
+The topological scaffolding is prior art: Popovi\'c \& Hoppe's \emph{Progressive Simplicial Complexes} (1997) generalizes vertex-split/edge-collapse to arbitrary-dimension, arbitrary-topology complexes, and Garland \& Zhou's \emph{Quadric-Based Simplification in Any Dimension} (2005) already puts the \emph{geometric} quadric on $n$-simplices.
+The clean statement of our contribution: \textbf{inherit that contraction and quadric machinery and swap the geometric quadric for the mechanical one.}
+Two caveats remain:
 \begin{itemize}
-  \item \textbf{Topological legality.} Simplicial contraction is governed by the
-        \textbf{link condition}; violating it silently merges sheets, pinches, or kills
-        handles. Controlled topology change (closing a sub-millimeter gap between panels) is
-        often desirable, but must be a deliberate operator, not an accident.
-  \item \textbf{Spurious null modes corrupt the cost.} A floppy/dangling region has a
-        zero-energy mode, so collapsing it costs \emph{zero} mechanical error---``you cannot
-        lose response you never had.'' The decimator will therefore aggressively delete exactly
-        the dangling straps and flaps. This is why, on dirty assets, the geometric/feature
-        term is \textbf{mandatory}: it protects mechanically-free but visually-important
-        structure. The eigenmode probe inherits the same problem (the lowest modes of a dirty
-        $K$ \emph{are} the floppy modes), which is a further reason to default to affine
-        probes.
+  \item \textbf{Topological legality.}
+        Simplicial contraction is governed by the \textbf{link condition}; violating it silently merges sheets, pinches, or kills handles.
+        Controlled topology change (closing a sub-millimeter gap between panels) is often desirable, but must be a deliberate operator, not an accident.
+  \item \textbf{Spurious null modes corrupt the cost.}
+        A floppy/dangling region has a zero-energy mode, so collapsing it costs \emph{zero} mechanical error---``you cannot lose response you never had.''
+        The decimator will therefore aggressively delete exactly the dangling straps and flaps.
+        This is why, on dirty assets, the geometric/feature term is \textbf{mandatory}: it protects mechanically-free but visually-important structure.
+        The eigenmode probe inherits the same problem (the lowest modes of a dirty $K$ \emph{are} the floppy modes), which is a further reason to default to affine probes.
 \end{itemize}
 
-\paragraph{Volumetric decimation.} Extending from $2$-complexes (shells) to $3$-complexes
-(solids) is, perhaps surprisingly, \emph{cleaner}. A P1 tetrahedron gives
-$K_e = V\,B^T D B$ with the $6\times6$ solid constitutive $D$ and \textbf{no separate bending
-family}---bending of a solid is just a strain distribution through its thickness, so the
-awkward stretching/bending split vanishes: one element family, one quadric per tet. Solid
-elasticity is a well-posed $3$D PDE with no non-manifold-junction ambiguity, so the patch test
-and convergence are meaningful again, and interior-node elimination is textbook static
-condensation (substructuring / superelements): \textbf{the exact Schur cost is on its firmest
-footing volumetrically.} The operation gets stricter, though: tet edge-collapse must avoid
-\textbf{inversion} (negative volume $\to$ indefinite $K_e$), so legality is the link condition
-\emph{plus} a positive-volume constraint on all incident tets. And one usually wants to
-preserve the boundary surface (visual) while coarsening the interior (mechanical)---a
-two-criterion problem the simplicial-complex view handles natively: boundary triangles carry a
-geometric quadric, interior tets carry the mechanical quadric, both accumulate to shared
-vertices, the collapse cost sums them. The unifying structure is therefore a \textbf{single
-abstract simplicial complex with a per-cell element type}, decimated by simplicial contraction
-gated by (i) topological legality, (ii) geometric non-inversion, and (iii) the mechanical
-cost. Surfaces and solids stop being separate pipelines.
+\paragraph{Volumetric decimation.}
+Extending from $2$-complexes (shells) to $3$-complexes (solids) is, perhaps surprisingly, \emph{cleaner}.
+A P1 tetrahedron gives $K_e = V\,B^T D B$ with the $6\times6$ solid constitutive $D$ and \textbf{no separate bending family}---bending of a solid is just a strain distribution through its thickness, so the awkward stretching/bending split vanishes: one element family, one quadric per tet.
+Solid elasticity is a well-posed $3$D PDE with no non-manifold-junction ambiguity, so the patch test and convergence are meaningful again, and interior-node elimination is textbook static condensation (substructuring / superelements): \textbf{the exact Schur cost is on its firmest footing volumetrically.}
+The operation gets stricter, though: tet edge-collapse must avoid \textbf{inversion} (negative volume $\to$ indefinite $K_e$), so legality is the link condition \emph{plus} a positive-volume constraint on all incident tets.
+And one usually wants to preserve the boundary surface (visual) while coarsening the interior (mechanical)---a two-criterion problem the simplicial-complex view handles natively: boundary triangles carry a geometric quadric, interior tets carry the mechanical quadric, both accumulate to shared vertices, the collapse cost sums them.
+The unifying structure is therefore a \textbf{single abstract simplicial complex with a per-cell element type}, decimated by simplicial contraction gated by (i) topological legality, (ii) geometric non-inversion, and (iii) the mechanical cost.
+Surfaces and solids stop being separate pipelines.
 
-\paragraph{The central hazard and a cheap diagnostic.} Across all of the above, the spurious
-null space is the one thing we must \emph{design} rather than inherit. It is also cheaply
-localizable: in $3$D,
-\begin{equation}
-  \big(\dim\ker K\big) - 6\,\big(\#\text{connected components}\big)
-    \;=\; \#\,\text{spurious mechanism modes,}
-\end{equation}
-and visualizing \emph{where} those modes have support shows precisely the regions mechanics
-would delete for free. Mitigations: a small regularization $K \to K + \epsilon M$ or a tiny
-drilling/normal stiffness; always co-weighting a geometric/feature term; a cleanup pre-pass
-(weld duplicates, drop zero-area/volume faces, snap near-coincident geometry) before any FEM.
-The bottom line: the stiffness matrix can always be \emph{built} and is always a proper
-\emph{discrete} energy; what a dirty mesh costs is continuum faithfulness (only at
-non-manifold junctions, which our objective does not need) and conditioning (fixable by
-cleanup).
+\paragraph{The central hazard and a cheap diagnostic.}
+Across all of the above, the spurious null space is the one thing we must \emph{design} rather than inherit.
+It is also cheaply localizable: in $3$D, $ \big(\dim\ker K\big) - 6\,\big(\#\text{connected components}\big) \;=\; \#\,\text{spurious mechanism modes,} $ and visualizing \emph{where} those modes have support shows precisely the regions mechanics would delete for free.
+Mitigations: a small regularization $K \to K + \epsilon M$ or a tiny drilling/normal stiffness; always co-weighting a geometric/feature term; a cleanup pre-pass (weld duplicates, drop zero-area/volume faces, snap near-coincident geometry) before any FEM.
+The bottom line: the stiffness matrix can always be \emph{built} and is always a proper \emph{discrete} energy; what a dirty mesh costs is continuum faithfulness (only at non-manifold junctions, which our objective does not need) and conditioning (fixable by cleanup).
+
+\clearpage
 
 \subsection{What the prototype computes, intuitively}
 
-We implemented the affine/curvature instantiation of the program above as a working greedy
-edge-collapse decimator. Stripped to intuition, it is six moves. The thread tying them
-together: \textbf{the stiffness is the Hessian of the elastic energy}, and we coarsen the
-mesh while preserving a probe-restricted version of that Hessian.
+We implemented the affine/curvature instantiation of the program above as a working greedy edge-collapse decimator.
+Stripped to intuition, it is six moves.
+The thread tying them together: \textbf{the stiffness is the Hessian of the elastic energy}, and we coarsen the mesh while preserving a probe-restricted version of that Hessian.
 
-\paragraph{1. Two energies, one per simplex.} Each element stores energy only when the
-deformation it ``cares about'' is excited; the element stiffness is the \textbf{Hessian} of
-that energy.
+\paragraph{1. Two energies, one per simplex.}
+Each element stores energy only when the deformation it ``cares about'' is excited; the element stiffness is the \textbf{Hessian} of that energy.
 \begin{itemize}
-  \item \textbf{Stretching} lives on \emph{triangles}: the CST membrane
-        $W_{\text{str}}=\tfrac12\,\mathbf{d}^\top K_e\,\mathbf{d}$ with
-        $K_e=A\,t\,B^\top D B=\partial^2 W_{\text{str}}/\partial\mathbf{d}^2$ penalizes
-        in-plane stretch/shear, weighted by area $A$, thickness $t$ and material $D$.
+  \item \textbf{Stretching} lives on \emph{triangles}: the CST membrane $W_{\text{str}}=\tfrac12\,\mathbf{d}^\top K_e\,\mathbf{d}$ with $K_e=A\,t\,B^\top D B=\partial^2 W_{\text{str}}/\partial\mathbf{d}^2$ penalizes in-plane stretch/shear, weighted by area $A$, thickness $t$ and material $D$.
         Rank $3$, and \emph{blind} to out-of-plane motion.
-  \item \textbf{Bending} lives on \emph{interior edges}: the hinge
-        $W_{\text{bend}}=\tfrac12\,c\,(\mathbf{g}^\top\mathbf{d})^2$ with
-        $\mathbf{g}=\nabla\theta$ penalizes change of the dihedral angle. Rank $1$; a
-        boundary edge has no second triangle, hence no hinge.
+  \item \textbf{Bending} lives on \emph{interior edges}: the hinge $W_{\text{bend}}=\tfrac12\,c\,(\mathbf{g}^\top\mathbf{d})^2$ with $\mathbf{g}=\nabla\theta$ penalizes change of the dihedral angle.
+        Rank $1$; a boundary edge has no second triangle, hence no hinge.
 \end{itemize}
 
-\paragraph{2. The costs add because energies add.} Both families scatter into one global
-elastic energy by finite-element assembly, $K=\sum_e K_e$---purely additive and
-combinatorial, with no ``triangle step vs.\ edge step'' to decide. An edge collapse disturbs
-only its $1$-ring, so every cost we compute is local.
+\paragraph{2. The costs add because energies add.}
+Both families scatter into one global elastic energy by finite-element assembly, $K=\sum_e K_e$---purely additive and combinatorial, with no ``triangle step vs.\ edge step'' to decide.
+An edge collapse disturbs only its $1$-ring, so every cost we compute is local.
 
-\paragraph{3. A probe turns the response \emph{operator} into a \emph{number}.} $K$ is a
-response operator, not an error: it vanishes at rest and on every rigid motion. To score a
-collapse we must choose a family of test deformations---a \emph{probe}---and ask how the
-response to them changes.
+\paragraph{3. A probe turns the response \emph{operator} into a \emph{number}.}
+$K$ is a response operator, not an error: it vanishes at rest and on every rigid motion.
+To score a collapse we must choose a family of test deformations---a \emph{probe}---and ask how the response to them changes.
 \begin{itemize}
-  \item \textbf{Affine probe:} the uniform fields $\mathbf{u}(X)=FX+\mathbf{c}$. Their six
-        constant-strain modes (symmetric $F$) carry energy; translation and rotation are
-        rigid and free. Because an affine field reads each node only through its own rest
-        position (via the sampler $V_e$, which maps the probe parameters to nodal
-        displacements), the element response collapses to a small fixed-size quadric
-        $G_e=V_e^\top K_e V_e$---\emph{the energy Hessian restricted to the probe}---that
-        \textbf{accumulates additively per vertex}, exactly like a Garland--Heckbert quadric.
+  \item \textbf{Affine probe:} the uniform fields $\mathbf{u}(X)=FX+\mathbf{c}$.
+        Their six constant-strain modes (symmetric $F$) carry energy; translation and rotation are rigid and free.
+        Because an affine field reads each node only through its own rest position (via the sampler $V_e$, which maps the probe parameters to nodal displacements), the element response collapses to a small fixed-size quadric $G_e=V_e^\top K_e V_e$---\emph{the energy Hessian restricted to the probe}---that \textbf{accumulates additively per vertex}, exactly like a Garland--Heckbert quadric.
         Probing with these preserves the \emph{homogenized} (bulk) stiffness---the patch test.
-  \item \textbf{Curvature probe:} an affine field is \emph{flat}---it sends a plane to a
-        plane---so it leaves every dihedral angle untouched: a flat hinge's two triangles
-        stay coplanar and the bending energy stored is \emph{exactly} zero. Affine probes are
-        blind to bending for a structural reason: bending is a \emph{second} derivative of
-        the displacement, and an affine field has none. So we enrich the probe with the
-        smallest fields that carry a second derivative, the \textbf{constant-curvature
-        (quadratic) fields} $u_k(X)=\tfrac12\,X^\top H_k X+F_{k,:}X+c_k$ (one symmetric
-        Hessian $H_k$ per output component $k=1,2,3$), whose constant $H_k$ curves the patch
-        the same way everywhere. This grows the probe from $12$ to $\mathbf{30}$ parameters:
-        $6$ rigid $+$ $6$ constant-strain (the affine modes, still present) $+$ $\mathbf{18}$
-        constant-curvature, and the eighteen new ones are what bend. The bookkeeping is
-        \emph{unchanged}---$P(X)$ still reads each node through its own rest position, now
-        with the quadratic monomials of $X$ appended (six per output component, $18$ in
-        all)---so $G_e=V_e^\top K_e V_e$ is merely a larger $30\times30$ quadric that still
-        \textbf{accumulates additively per vertex}; only the fixed size grows, $12\to30$.
-        Why bending now registers: the hinge's quadric is
-        $G_h=c\,(\mathbf{g}^\top V_e)^\top(\mathbf{g}^\top V_e)$, and its ``normal''
-        $\mathbf{g}^\top V_e$ is the dihedral-angle change each probe mode causes. On a flat
-        hinge an affine map keeps the triangles coplanar, so this vanishes on every affine
-        mode---but a constant-curvature mode tilts the two triangles relative to each other,
-        so it is \emph{nonzero} on the eighteen new modes. Bending therefore finally lives in
-        $G$ and is priced at every collapse---which is exactly why a positive bending weight
-        must be paired with the curvature probe. (It also tightens \emph{membrane} fidelity,
-        since the in-plane quadratic modes pin strain \emph{gradients}, not just constant
-        strain, at the cost of a stricter, ${\sim}6\times$ larger quadric.)
+  \item \textbf{Curvature probe:} an affine field is \emph{flat}---it sends a plane to a plane---so it leaves every dihedral angle untouched: a flat hinge's two triangles stay coplanar and the bending energy stored is \emph{exactly} zero.
+        Affine probes are blind to bending for a structural reason: bending is a \emph{second} derivative of the displacement, and an affine field has none.
+        So we enrich the probe with the smallest fields that carry a second derivative, the \textbf{constant-curvature (quadratic) fields} $u_k(X)=\tfrac12\,X^\top H_k X+F_{k,:}X+c_k$ (one symmetric Hessian $H_k$ per output component $k=1,2,3$), whose constant $H_k$ curves the patch the same way everywhere.
+        This grows the probe from $12$ to $\mathbf{30}$ parameters: $6$ rigid $+$ $6$ constant-strain (the affine modes, still present) $+$ $\mathbf{18}$ constant-curvature, and the eighteen new ones are what bend.
+        The bookkeeping is \emph{unchanged}---$P(X)$ still reads each node through its own rest position, now with the quadratic monomials of $X$ appended (six per output component, $18$ in all)---so $G_e=V_e^\top K_e V_e$ is merely a larger $30\times30$ quadric that still \textbf{accumulates additively per vertex}; only the fixed size grows, $12\to30$.
+        Why bending now registers: the hinge's quadric is $G_h=c\,(\mathbf{g}^\top V_e)^\top(\mathbf{g}^\top V_e)$, and its ``normal'' $\mathbf{g}^\top V_e$ is the dihedral-angle change each probe mode causes.
+        On a flat hinge an affine map keeps the triangles coplanar, so this vanishes on every affine mode---but a constant-curvature mode tilts the two triangles relative to each other, so it is \emph{nonzero} on the eighteen new modes.
+        Bending therefore finally lives in $G$ and is priced at every collapse---which is exactly why a positive bending weight must be paired with the curvature probe.
+        (It also tightens \emph{membrane} fidelity, since the in-plane quadratic modes pin strain \emph{gradients}, not just constant strain, at the cost of a stricter, ${\sim}6\times$ larger quadric.)
 \end{itemize}
 
-\paragraph{Probing in one tiny example (two springs).} Three nodes on a line, $A,m,B$ at
-$x=0,1,2$, joined by two unit springs, so
-$E=\tfrac12(u_m-u_A)^2+\tfrac12(u_B-u_m)^2$ and
+
+\paragraph{Probing in one tiny example (two springs).}
+Three nodes on a line, $A,m,B$ at $x=0,1,2$, joined by two unit springs, so $E=\tfrac12(u_m-u_A)^2+\tfrac12(u_B-u_m)^2$ and
 \begin{equation}
   K=\begin{bmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{bmatrix}.
 \end{equation}
-The stiffness $K$ scores \emph{every} deformation, but it is $3\times3$ and entangled with
-the interior node $m$. Probe it: the $1$-D affine field $\mathbf{u}(x)=\varepsilon x+c$
-($\varepsilon$ a uniform stretch, $c$ a rigid translation), sampled at the nodes, gives the
-probe map $V$ and the reduced stiffness $G$,
+The stiffness $K$ scores \emph{every} deformation, but it is $3\times3$ and entangled with the interior node $m$.
+Probe it: the $1$-D affine field $\mathbf{u}(x)=\varepsilon x+c$ ($\varepsilon$ a uniform stretch, $c$ a rigid translation), sampled at the nodes, gives the probe map $V$ and the reduced stiffness $G$,
 \begin{equation}
   V=\begin{bmatrix}x_A&1\\x_m&1\\x_B&1\end{bmatrix}
    =\begin{bmatrix}0&1\\1&1\\2&1\end{bmatrix},
   \qquad
   G=V^TKV=\begin{bmatrix}2&0\\0&0\end{bmatrix}.
 \end{equation}
-Read $G$ off directly: stretching the chain by a unit strain stores energy
-$\tfrac12\cdot 2\cdot\varepsilon^2$, while translating it ($c$) stores nothing---the rigid
-null mode. That single ``$2$'' is the chain's entire fingerprint as the probe sees it; the
-$3\times3$ operator has been squeezed to one meaningful number (plus a structural zero).
-\textbf{Collapse the interior node} and the coarse model is one spring $A\!-\!B$ of stiffness
-$k_c$; probing it the \emph{same} way gives $G_c=k_c\,(x_B-x_A)^2=4k_c$---now directly
-comparable, though the meshes differ in size. Matching the fingerprint forces
-$k_c=\tfrac12$ (exactly the series stiffness $k_1k_2/(k_1{+}k_2)$), and the collapse cost
-$\|G_c-G\|=|4k_c-2|$ rejects a naive reconnect ($k_c{=}1\Rightarrow$ cost $2$, too stiff) in
-favor of the faithful one ($k_c{=}\tfrac12\Rightarrow$ cost $0$). The mesh version is
-identical, only with the six constant-strain modes in place of the single $\varepsilon$, so
-$G$ is $12\times12$ (six stiffness numbers $+$ six rigid zeros) rather than $2\times2$.
+Read $G$ off directly: stretching the chain by a unit strain stores energy $\tfrac12\cdot 2\cdot\varepsilon^2$, while translating it ($c$) stores nothing---the rigid null mode.
+That single ``$2$'' is the chain's entire fingerprint as the probe sees it; the $3\times3$ operator has been squeezed to one meaningful number (plus a structural zero).
+\textbf{Collapse the interior node} and the coarse model is one spring $A\!-\!B$ of stiffness $k_c$; probing it the \emph{same} way gives $G_c=k_c\,(x_B-x_A)^2=4k_c$---now directly comparable, though the meshes differ in size.
+Matching the fingerprint forces $k_c=\tfrac12$ (exactly the series stiffness $k_1k_2/(k_1{+}k_2)$), and the collapse cost $\|G_c-G\|=|4k_c-2|$ rejects a naive reconnect ($k_c{=}1\Rightarrow$ cost $2$, too stiff) in favor of the faithful one ($k_c{=}\tfrac12\Rightarrow$ cost $0$).
+The mesh version is identical, only with the six constant-strain modes in place of the single $\varepsilon$, so $G$ is $12\times12$ (six stiffness numbers $+$ six rigid zeros) rather than $2\times2$.
 
-\paragraph{Choosing \emph{which} edge to collapse.} The score is not ``make it stiff''---it
-is ``change the fingerprint as little as possible,'' and the two ways to remove $m$ are
-generally \emph{not} equal. Give the springs different stiffnesses, $k_1=2$ on $A\!-\!m$ and
-$k_2=1$ on $m\!-\!B$, so the fine fingerprint is $G_{\text{fine}}=k_1+k_2=3$. Removing $m$
-collapses one of its two edges; the spring on the \emph{other} edge survives and now spans
-the full $A\!-\!B$ gap (length $2$), so its probe energy uses that doubled span:
+\paragraph{Choosing \emph{which} edge to collapse.}
+The score is not ``make it stiff''---it is ``change the fingerprint as little as possible,'' and the two ways to remove $m$ are generally \emph{not} equal.
+Give the springs different stiffnesses, $k_1=2$ on $A\!-\!m$ and $k_2=1$ on $m\!-\!B$, so the fine fingerprint is $G_{\text{fine}}=k_1+k_2=3$.
+Removing $m$ collapses one of its two edges; the spring on the \emph{other} edge survives and now spans the full $A\!-\!B$ gap (length $2$), so its probe energy uses that doubled span:
 \begin{itemize}
-  \item \textbf{collapse $A\!-\!m$} (the stiff edge): the soft spring survives,
-        $G_{\text{after}}=k_2\,(x_B-x_A)^2=4$, cost $|4-3|=1$;
-  \item \textbf{collapse $m\!-\!B$} (the soft edge): the stiff spring survives,
-        $G_{\text{after}}=k_1\,(x_B-x_A)^2=8$, cost $|8-3|=5$.
+  \item \textbf{collapse $A\!-\!m$} (the stiff edge): the soft spring survives, $G_{\text{after}}=k_2\,(x_B-x_A)^2=4$, cost $|4-3|=1$;
+  \item \textbf{collapse $m\!-\!B$} (the soft edge): the stiff spring survives, $G_{\text{after}}=k_1\,(x_B-x_A)^2=8$, cost $|8-3|=5$.
 \end{itemize}
-The heap therefore collapses $A\!-\!m$ first---five times cheaper. (A single spring spanning
-the whole gap is always stiffer than the two short ones it replaces, so both moves
-over-stiffen; promoting the \emph{stiff} spring over-stiffens far more, so keeping the soft
-one is the smaller change.) Note we are minimizing the \emph{deviation} of the fingerprint,
-never maximizing stiffness: the score ranks the available moves and takes the gentlest. On a
-mesh this is the same comparison, run over every edge with the $12$-number $G$.
+The heap therefore collapses $A\!-\!m$ first---five times cheaper.
+(A single spring spanning the whole gap is always stiffer than the two short ones it replaces, so both moves over-stiffen; promoting the \emph{stiff} spring over-stiffens far more, so keeping the soft one is the smaller change.)
+Note we are minimizing the \emph{deviation} of the fingerprint, never maximizing stiffness: the score ranks the available moves and takes the gentlest.
+On a mesh this is the same comparison, run over every edge with the $12$-number $G$.
 
-\paragraph{Probing \emph{bending}: the same chain, now a beam.} The spring chain never
-bends---axial springs store nothing in a sideways wiggle---so it cannot show what the
-curvature probe is \emph{for}. Reuse the three nodes $A,m,B$ at $x=0,1,2$, but now let them
-move \emph{transversely} (out of the line) by $w_A,w_m,w_B$, and add a discrete hinge that
-penalizes the kink at the middle node,
+\paragraph{Probing \emph{bending}: the same chain, now a beam.}
+The spring chain never bends---axial springs store nothing in a sideways wiggle---so it cannot show what the curvature probe is \emph{for}.
+Reuse the three nodes $A,m,B$ at $x=0,1,2$, but now let them move \emph{transversely} (out of the line) by $w_A,w_m,w_B$, and add a discrete hinge that penalizes the kink at the middle node,
 \begin{equation}
   E_{\text{bend}}=\tfrac12\,c\,(w_A-2w_m+w_B)^2=\tfrac12\,c\,(\mathbf{g}^\top\mathbf{w})^2,
   \qquad \mathbf{g}=(1,-2,1)^\top .
 \end{equation}
-So $K_{\text{bend}}=c\,\mathbf{g}\mathbf{g}^\top$ is rank $1$---the $1$-D twin of the dihedral
-hinge, with the discrete second difference $\mathbf{g}^\top\mathbf{w}$ standing in for
-curvature. Probe it the \emph{affine} way first, with a transverse \emph{linear} field
-$w(x)=\beta x+\gamma$ (a tilt $\beta$ plus a translation $\gamma$). A straight tilt has no
-kink---its second difference is identically zero---so sampling at the nodes gives
-$\mathbf{g}^\top V_{\!\text{aff}}=(0,0)$ and
+So $K_{\text{bend}}=c\,\mathbf{g}\mathbf{g}^\top$ is rank $1$---the $1$-D twin of the dihedral hinge, with the discrete second difference $\mathbf{g}^\top\mathbf{w}$ standing in for curvature.
+Probe it the \emph{affine} way first, with a transverse \emph{linear} field $w(x)=\beta x+\gamma$ (a tilt $\beta$ plus a translation $\gamma$).
+A straight tilt has no kink---its second difference is identically zero---so sampling at the nodes gives $\mathbf{g}^\top V_{\!\text{aff}}=(0,0)$ and
 \begin{equation}
   G_{\text{aff}}=V_{\!\text{aff}}^\top K_{\text{bend}} V_{\!\text{aff}}=\mathbf{0}.
 \end{equation}
-\textbf{The affine probe cannot see the hinge at all}---``blind to bending,'' here as a
-literal $2\times2$ zero. Now enrich with the quadratic mode
-$w(x)=\tfrac12\kappa x^2+\beta x+\gamma$; the sampler and the reduced quadric become
+\textbf{The affine probe cannot see the hinge at all}---``blind to bending,'' here as a literal $2\times2$ zero.
+Now enrich with the quadratic mode $w(x)=\tfrac12\kappa x^2+\beta x+\gamma$; the sampler and the reduced quadric become
 \begin{equation}
   V=\begin{bmatrix}\tfrac12 x_A^2 & x_A & 1\\ \tfrac12 x_m^2 & x_m & 1\\
                     \tfrac12 x_B^2 & x_B & 1\end{bmatrix}
    =\begin{bmatrix}0&0&1\\ \tfrac12&1&1\\ 2&2&1\end{bmatrix},
-  \qquad
+  \
   G=V^\top K_{\text{bend}} V=\begin{bmatrix}c&0&0\\ 0&0&0\\ 0&0&0\end{bmatrix},
 \end{equation}
-in parameters $(\kappa,\beta,\gamma)$. The lone entry sits in the \emph{curvature} slot: the
-second difference of the quadratic part is exactly $\kappa$ (so $\mathbf{g}^\top V=(1,0,0)$),
-hence a unit curvature stores energy $\tfrac12 c$, while the tilt $\beta$ and translation
-$\gamma$---the affine modes---fall in the null space and cost nothing. Exactly as the spring
-chain squeezed its $K$ to the single stretch number ``$2$,'' the beam squeezes its hinge to
-the single bending number ``$c$''---but only once the probe is rich enough to \emph{ask}
-about curvature; the affine probe does not even carry that coordinate. (On a mesh this
-$3\times3$ becomes the $30\times30$ $G$, with eighteen curvature modes in place of this lone
-$\kappa$; and collapsing $m$ leaves the straight segment $A\!-\!B$ with no interior hinge, so
-the coarse bending fingerprint is $0$ and the collapse forfeits the whole $c$---a curvature
-response cannot be carried by fewer than three nodes, which is why bending guards features
-that stretching ignores.)
+in parameters $(\kappa,\beta,\gamma)$.
+The lone entry sits in the \emph{curvature} slot: the second difference of the quadratic part is exactly $\kappa$ (so $\mathbf{g}^\top V=(1,0,0)$), hence a unit curvature stores energy $\tfrac12 c$, while the tilt $\beta$ and translation $\gamma$---the affine modes---fall in the null space and cost nothing.
+Exactly as the spring chain squeezed its $K$ to the single stretch number ``$2$,'' the beam squeezes its hinge to the single bending number ``$c$''---but only once the probe is rich enough to \emph{ask} about curvature; the affine probe does not even carry that coordinate.
+(On a mesh this $3\times3$ becomes the $30\times30$ $G$, with eighteen curvature modes in place of this lone $\kappa$; and collapsing $m$ leaves the straight segment $A\!-\!B$ with no interior hinge, so the coarse bending fingerprint is $0$ and the collapse forfeits the whole $c$---a curvature response cannot be carried by fewer than three nodes, which is why bending guards features that stretching ignores.)
 
-\paragraph{4. The collapse cost is lost homogenized response.} Collapsing $(v_i,v_j)$ and
-re-meshing the ring changes the accumulated $G$ by $\Delta G$; the price is
-$\|\Delta G\|^2$---``how much homogenized response did this collapse destroy.'' Stretching,
-bending and an optional geometric (QEM) term enter as \emph{separate} contributions, each
-normalized to its own typical (median) magnitude so the weights are dimensionless---a weight
-of $1$ means ``as costly as a typical membrane collapse.'' Bending is \emph{re-read at the
-collapse}, not frozen, because the collapse shifts the dihedral references throughout the
-ring.
+\paragraph{4. The collapse cost is lost homogenized response.}
+Collapsing $(v_i,v_j)$ and re-meshing the ring changes the accumulated $G$ by $\Delta G$; the price is $\|\Delta G\|^2$---``how much homogenized response did this collapse destroy.''
+Stretching, bending and an optional geometric (QEM) term enter as \emph{separate} contributions, each normalized to its own typical (median) magnitude so the weights are dimensionless---a weight of $1$ means ``as costly as a typical membrane collapse.''
+Bending is \emph{re-read at the collapse}, not frozen, because the collapse shifts the dihedral references throughout the ring.
 
-\paragraph{5. A quiet fact: affine stretching $\approx$ geometry.} Preserving the homogenized
-membrane stiffness under affine probes turns out to be essentially preserving area and
-shape---i.e.\ geometric QEM reweighted by $D$. The cost penalizes pulling a vertex \emph{off}
-the surface (quadratically) while letting it \emph{slide} tangentially (almost free), exactly
-like a tangent-plane quadric---though we never wrote a distance-to-plane term. It
-\emph{emerges} from patch-test invariance: re-triangulating a flat region in-plane does not
-change its bulk stiffness, but tilting it out of plane does. So for membrane, mechanical and
-geometric fidelity coincide; they part ways only where the material varies, or once the
-curvature / eigenmode probes bring in bending and global compliance.
+\paragraph{5. A quiet fact: affine stretching $\approx$ geometry.}
+Preserving the homogenized membrane stiffness under affine probes turns out to be essentially preserving area and shape---i.e.\ geometric QEM reweighted by $D$.
+The cost penalizes pulling a vertex \emph{off} the surface (quadratically) while letting it \emph{slide} tangentially (almost free), exactly like a tangent-plane quadric---though we never wrote a distance-to-plane term.
+It \emph{emerges} from patch-test invariance: re-triangulating a flat region in-plane does not change its bulk stiffness, but tilting it out of plane does.
+So for membrane, mechanical and geometric fidelity coincide; they part ways only where the material varies, or once the curvature / eigenmode probes bring in bending and global compliance.
 
-\paragraph{Corollary: boundaries for free.} The same area-sensitivity preserves \emph{free
-boundaries} with no separate term. ``Slide tangentially for free'' holds in the interior
-because the fan around a vertex is closed---an in-plane nudge shrinks some triangles and grows
-others, leaving area (hence $G$) unchanged. At a boundary the fan is one-sided: sliding
-\emph{along} the edge stays neutral, but sliding \emph{inward}---the in-surface direction
-$\mathbf e\times\mathbf n$ perpendicular to the edge---can only shrink the boundary triangles,
-with nothing on the open side to compensate, so it moves $G$ and is penalized. That penalized
-direction is exactly the plane geometric QEM must \emph{add by hand} to stop boundary erosion
-(its boundary-quadric normal is $\mathbf e\times\mathbf n$); here it falls out of preserving
-stiffness, because a free edge is simply material that is one-sided. (Purely a membrane
-effect---a boundary edge carries no hinge; and a \emph{dangling} flap is still a zero-energy
-mode that only the geometric term guards.)
+\paragraph{Corollary: boundaries for free.}
+The same area-sensitivity preserves \emph{free boundaries} with no separate term.
+``Slide tangentially for free'' holds in the interior because the fan around a vertex is closed---an in-plane nudge shrinks some triangles and grows others, leaving area (hence $G$) unchanged.
+At a boundary the fan is one-sided: sliding \emph{along} the edge stays neutral, but sliding \emph{inward}---the in-surface direction $\mathbf e\times\mathbf n$ perpendicular to the edge---can only shrink the boundary triangles, with nothing on the open side to compensate, so it moves $G$ and is penalized.
+That penalized direction is exactly the plane geometric QEM must \emph{add by hand} to stop boundary erosion (its boundary-quadric normal is $\mathbf e\times\mathbf n$); here it falls out of preserving stiffness, because a free edge is simply material that is one-sided.
+(Purely a membrane effect---a boundary edge carries no hinge; and a \emph{dangling} flap is still a zero-energy mode that only the geometric term guards.)
 
-\paragraph{6. Where the merged vertex goes.} We keep it \emph{on the collapsing edge},
-$w(\alpha)=(1-\alpha)\,\mathbf{x}_i+\alpha\,\mathbf{x}_j$ with $\alpha\in[0,1]$. The cost is
-\emph{not} quadratic in a free $3$-D position (area and the strain gradient depend on it
-nonlinearly), so there is no closed-form $-A^{-1}\mathbf{b}$ minimizer as in geometric QEM.
-Instead we run a one-dimensional line search along the edge: evaluate the cost at
-$\alpha\in\{0,\tfrac12,1\}$, fit a parabola, and take its minimum on $[0,1]$. Staying on the
-edge keeps the coarse mesh on the original surface, and a placement that would sliver a
-triangle prices itself out automatically (its area, hence its $G_e$, collapses and
-$\|\Delta G\|$ jumps).
+\paragraph{6. Where the merged vertex goes.}
+We keep it \emph{on the collapsing edge}, $w(\alpha)=(1-\alpha)\,\mathbf{x}_i+\alpha\,\mathbf{x}_j$ with $\alpha\in[0,1]$.
+The cost is \emph{not} quadratic in a free $3$-D position (area and the strain gradient depend on it nonlinearly), so there is no closed-form $-A^{-1}\mathbf{b}$ minimizer as in geometric QEM.
+Instead we run a one-dimensional line search along the edge: evaluate the cost at $\alpha\in\{0,\tfrac12,1\}$, fit a parabola, and take its minimum on $[0,1]$.
+Staying on the edge keeps the coarse mesh on the original surface, and a placement that would sliver a triangle prices itself out automatically (its area, hence its $G_e$, collapses and $\|\Delta G\|$ jumps).
 
 \medskip
-\noindent The loop itself is ordinary greedy QEM---with the geometric face quadric swapped
-for this mechanical, probe-projected $G$. It is worth spelling out \emph{when} and
-\emph{where} each energy is evaluated:
+\noindent The loop itself is ordinary greedy QEM---with the geometric face quadric swapped for this mechanical, probe-projected $G$.
+It is worth spelling out \emph{when} and \emph{where} each energy is evaluated:
 
 \begin{quote}\small
 \textbf{Precompute} (once, on the fine mesh) --- two element families: \\
 \hspace*{1.5em} \emph{stretching}, on each \textbf{triangle} $f$ --- 3 verts, 9 DOF: \\
 \hspace*{3em} $K_f=A\,t\,B^\top D B$ (rank 3); \emph{cache} $G_f=V_f^\top K_f V_f$ \\
-\hspace*{1.5em} \emph{bending}, on each \textbf{interior edge} (hinge) $h$ --- 4 verts, 12 DOF: \\
-\hspace*{3em} the 2 edge endpoints $+$ the 2 opposite triangle vertices, \\
-\hspace*{3em} $K_h=c\,\mathbf{g}\mathbf{g}^\top$ (rank 1, $\mathbf{g}=\nabla\theta$); \emph{not} cached --- reassembled \\
-\hspace*{3em} over the ring when an edge is scored (its dihedral reference drifts \\
-\hspace*{3em} under every nearby collapse, so a per-hinge cache would be stale at once) \\
+\hspace*{1.5em} \emph{bending}, on each \textbf{interior edge} (hinge) $h$ --- 4 verts, 12 DOF: the 2 edge endpoints $+$ the 2 opposite triangle vertices, $K_h=c\,\mathbf{g}\mathbf{g}^\top$ (rank 1, $\mathbf{g}=\nabla\theta$); \emph{not} cached --- reassembled over the ring when an edge is scored (its dihedral reference drifts under every nearby collapse, so a per-hinge cache would be stale at once) \\
 \hspace*{1.5em} normalizers $s_{\text{mem}},s_{\text{bend}},s_{\text{geom}}\leftarrow$ median initial per-edge term \\[3pt]
 \textbf{Heap}: for every edge $(u,v)$, push $\textsc{cost}(u,v)$ \\[3pt]
 \textbf{while} \#verts $>$ target: \\
@@ -850,103 +595,198 @@ for this mechanical, probe-projected $G$. It is worth spelling out \emph{when} a
 \end{quote}
 
 \noindent This is QEM's faces\,$\to$\,vertices\,$\to$\,edges flow, widened to two families.
-\textbf{Stretching \emph{is} the QEM face quadric}---a triangle's $G_f$ scatters to its three
-vertices---and it is the one piece cached. \textbf{Bending is a second family living on
-interior edges}, rank-1, with a wider four-vertex stencil (the edge plus its two opposite
-vertices); it is rebuilt locally rather than stored. And neither family is pre-accumulated into
-a frozen per-vertex quadric the way classical QEM is: because the mechanical cost re-reads
-geometry, the per-edge score sums the incident elements \emph{on the fly}. That is what keeps
-the cost \emph{local}---every element outside the merged ring is identical before and after, so
-it cancels in $G_{\text{new}}-G_{\text{old}}$ and is never touched. Of the membrane triangles
-only the \emph{survivors} are rebuilt (the two folding onto the edge shrink to zero area and
-drop out), and they are recomputed \emph{at the trial position $x$}, once per candidate
-placement, since moving the vertex changes each $B$-matrix and area. Bending is likewise
-reassembled at $x$---never frozen---because shifting one vertex tilts the dihedral reference of
-every edge in the ring.
+\textbf{Stretching \emph{is} the QEM face quadric}---a triangle's $G_f$ scatters to its three vertices---and it is the one piece cached.
+\textbf{Bending is a second family living on interior edges}, rank-1, with a wider four-vertex stencil (the edge plus its two opposite vertices); it is rebuilt locally rather than stored.
+And neither family is pre-accumulated into a frozen per-vertex quadric the way classical QEM is: because the mechanical cost re-reads geometry, the per-edge score sums the incident elements \emph{on the fly}.
+That is what keeps the cost \emph{local}---every element outside the merged ring is identical before and after, so it cancels in $G_{\text{new}}-G_{\text{old}}$ and is never touched.
+Of the membrane triangles only the \emph{survivors} are rebuilt (the two folding onto the edge shrink to zero area and drop out), and they are recomputed \emph{at the trial position $x$}, once per candidate placement, since moving the vertex changes each $B$-matrix and area.
+Bending is likewise reassembled at $x$---never frozen---because shifting one vertex tilts the dihedral reference of every edge in the ring.
 
 \medskip
-\noindent The one caveat the pseudocode cannot hide: every energy above is evaluated
-\emph{locally and now}. The placement line returns a faithful optimum for \emph{this} collapse
-along \emph{this} edge, and the heap always spends the cheapest collapse available---but the
-outer loop is greedy and path-dependent, so a locally cheaper collapse, or a locally better
-$x^\star$, need not improve the \emph{global} coarse response: an early, gentle-looking
-collapse can force expensive ones later. The per-step cost is an honest local score, not a
-global optimum.
+\noindent The one caveat the pseudocode cannot hide: every energy above is evaluated \emph{locally and now}.
+The placement line returns a faithful optimum for \emph{this} collapse along \emph{this} edge, and the heap always spends the cheapest collapse available---but the outer loop is greedy and path-dependent, so a locally cheaper collapse, or a locally better $x^\star$, need not improve the \emph{global} coarse response: an early, gentle-looking collapse can force expensive ones later.
+The per-step cost is an honest local score, not a global optimum.
+
 
 \subsection{Next steps: from the dihedral hinge to a plate-bending quadric}
 
-The bending model is the least-developed part of the prototype, and a clean upgrade path falls
-out of comparing it against \emph{Kirchhoff--Love} (KL) thin-plate theory. We record it here as
-the next concrete experiment.
+The bending model is the least-developed part of the prototype, and a clean upgrade path falls out of comparing it against \emph{Kirchhoff--Love} (KL) thin-plate theory.
+We record it here as the next concrete experiment.
 
-\paragraph{Where we are.} Membrane uses the plane-stress CST; bending uses the discrete dihedral
-hinge (Grinspun et al., \emph{Discrete Shells}), $K_h=c\,\mathbf g\mathbf g^\top$ with
-$\mathbf g=\partial\theta/\partial\mathbf v$ over the four hinge vertices. We already borrow KL's
-flexural rigidity for the modulus, $c\propto Et^3/12(1-\nu^2)$. But the hinge has three
-limitations, all traceable to its being a \emph{single scalar per edge}:
+\paragraph{Where we are.}
+Membrane uses the plane-stress CST; bending uses the discrete dihedral hinge (Grinspun et al., \emph{Discrete Shells}), $K_h=c\,\mathbf g\mathbf g^\top$ with $\mathbf g=\partial\theta/\partial\mathbf v$ over the four hinge vertices.
+We already borrow KL's flexural rigidity for the modulus, $c\propto Et^3/12(1-\nu^2)$.
+But the hinge has three limitations, all traceable to its being a \emph{single scalar per edge}:
 \begin{itemize}
-  \item \textbf{Rank-1, one direction.} The dihedral measures bending only in the direction
-        \emph{across} the edge (the edge is the fold axis)---a single directional sample of the
-        curvature tensor $\kappa$, with no Poisson coupling between principal curvatures.
-  \item \textbf{Under-uses the curvature probe.} Our $30$-D probe already spans the full
-        constant-curvature tensor (the $18$ quadratic modes), but a rank-1 element excites only a
-        $1$-D slice of it per edge---a rich probe paired with an impoverished element.
-  \item \textbf{Transcendental in position.} $\theta(\mathbf x)$ is an arctan of the node
-        positions, so the collapse cost is \emph{not} quadratic in the merged position
-        $\mathbf x^\star$---exactly why placement needs the $1$-D edge line search instead of a
-        QEM closed-form solve.
+  \item \textbf{Rank-1, one direction.}
+        The dihedral measures bending only in the direction \emph{across} the edge (the edge is the fold axis)---a single directional sample of the curvature tensor $\kappa$, with no Poisson coupling between principal curvatures.
+  \item \textbf{Under-uses the curvature probe.}
+        Our $30$-D probe already spans the full constant-curvature tensor (the $18$ quadratic modes), but a rank-1 element excites only a $1$-D slice of it per edge---a rich probe paired with an impoverished element.
+  \item \textbf{Transcendental in position.}
+        $\theta(\mathbf x)$ is an arctan of the node positions, so the collapse cost is \emph{not} quadratic in the merged position $\mathbf x^\star$---exactly why placement needs the $1$-D edge line search instead of a QEM closed-form solve.
 \end{itemize}
 
-\paragraph{What KL offers.} KL bending energy is quadratic in the full \emph{curvature tensor}
-$\kappa_{\alpha\beta}=-w_{,\alpha\beta}$ (the Hessian of the deflection), through a
-moment--curvature law $M=D_b\kappa$ that uses the \emph{same} plane-stress matrix as membrane,
-scaled by $t^3/12$ instead of $t$, \emph{with} Poisson coupling and the anticlastic $(1-\nu)$
-term. The catch is continuity: a second-derivative energy needs $C^1$ shape functions (a slope
-kink stores infinite bending energy), which plain $C^0$ triangles lack---hence non-conforming
-plate elements (the Discrete Kirchhoff Triangle, DKT) or the constant quadratic-bending operator
-of Bergou et al.\ (a cotangent bilaplacian $L$). The hinge is popular precisely because it sidesteps
-$C^1$: it puts the curvature on edges as a fold angle and needs only vertex positions.
+\paragraph{What KL offers.}
+KL bending energy is quadratic in the full \emph{curvature tensor} $\kappa_{\alpha\beta}=-w_{,\alpha\beta}$ (the Hessian of the deflection), through a moment--curvature law $M=D_b\kappa$ that uses the \emph{same} plane-stress matrix as membrane, scaled by $t^3/12$ instead of $t$, \emph{with} Poisson coupling and the anticlastic $(1-\nu)$ term.
+The catch is continuity: a second-derivative energy needs $C^1$ shape functions (a slope kink stores infinite bending energy), which plain $C^0$ triangles lack---hence non-conforming plate elements (the Discrete Kirchhoff Triangle, DKT) or the constant quadratic-bending operator of Bergou et al.\ (a cotangent bilaplacian $L$).
+The hinge is popular precisely because it sidesteps $C^1$: it puts the curvature on edges as a fold angle and needs only vertex positions.
 
-\paragraph{The upgrade, and why it is attractive.} Replace the hinge with a \textbf{linearized KL
-curvature operator}: a fixed, rest-precomputed curvature--displacement matrix $B_b$ (DKT) or
-constant $L$ (quadratic bending), so that $\kappa=B_b\,\mathbf x$ is \emph{linear} in the vertex
-positions. Two payoffs follow at once.
+\paragraph{The upgrade, and why it is attractive.}
+Replace the hinge with a \textbf{linearized KL curvature operator}: a fixed, rest-precomputed curvature--displacement matrix $B_b$ (DKT) or constant $L$ (quadratic bending), so that $\kappa=B_b\,\mathbf x$ is \emph{linear} in the vertex positions.
+Two payoffs follow at once.
 \begin{itemize}
-  \item \textbf{A rank-3, Poisson-coupled bending fingerprint.} $G_b=V^\top\!\big(B_b^\top D_b B_b
-        \big)V$ becomes rank $3$ per element and carries the directional / Poisson structure the
-        hinge cannot---a genuine \emph{bending patch test}, the clean analog of the membrane
-        homogenization, and it finally exercises the full curvature probe. It also unifies the
-        constitutive law (one $D$ for stretch and bend), opening the door to orthotropic materials
-        the scalar hinge cannot express.
-  \item \textbf{A QEM-shaped quadric in position.} Because $\kappa$ is linear in $\mathbf x$, the
-        bending energy is a \emph{fixed quadratic form} $\tfrac12\,\mathbf x^\top Q_{\text{bend}}\,
-        \mathbf x$ with $Q_{\text{bend}}=B_b^\top D_b B_b$, accumulating additively per vertex
-        exactly like a Garland--Heckbert plane quadric (flat configurations are its null space).
-        Combined with the membrane term---which already behaves like a tangent-plane quadric (the
-        ``affine stretching $\approx$ geometry'' fact above)---the whole collapse cost becomes a
-        single quadratic $C(\mathbf x^\star)=\mathbf x^{\star\top}\!A\,\mathbf x^\star+2\mathbf b^\top
-        \mathbf x^\star+c$, with closed-form optimum $\mathbf x^\star=-A^{-1}\mathbf b$---recovering
-        QEM's elegance and dropping the line search.
+  \item \textbf{A rank-3, Poisson-coupled bending fingerprint.}
+        $G_b=V^\top\!\big(B_b^\top D_b B_b \big)V$ becomes rank $3$ per element and carries the directional / Poisson structure the hinge cannot---a genuine \emph{bending patch test}, the clean analog of the membrane homogenization, and it finally exercises the full curvature probe.
+        It also unifies the constitutive law (one $D$ for stretch and bend), opening the door to orthotropic materials the scalar hinge cannot express.
+  \item \textbf{A QEM-shaped quadric in position.}
+        Because $\kappa$ is linear in $\mathbf x$, the bending energy is a \emph{fixed quadratic form} $\tfrac12\,\mathbf x^\top Q_{\text{bend}}\, \mathbf x$ with $Q_{\text{bend}}=B_b^\top D_b B_b$, accumulating additively per vertex exactly like a Garland--Heckbert plane quadric (flat configurations are its null space).
+        Combined with the membrane term---which already behaves like a tangent-plane quadric (the ``affine stretching $\approx$ geometry'' fact above)---the whole collapse cost becomes a single quadratic $C(\mathbf x^\star)=\mathbf x^{\star\top}\!A\,\mathbf x^\star+2\mathbf b^\top \mathbf x^\star+c$, with closed-form optimum $\mathbf x^\star=-A^{-1}\mathbf b$---recovering QEM's elegance and dropping the line search.
 \end{itemize}
 
-\paragraph{The bargain.} The fixed bending quadric is a \emph{linearization}: exact for a flat /
-developable rest patch (where $\kappa=L\mathbf x$ is truly linear), approximate for curved rest or
-large collapse moves, and not rotation-invariant under large deformation---the same trade QEM makes
-by freezing its planes, and the same trade caveat~(i) already names (freeze the reference for an
-approximate quadratic, or re-evaluate at candidates for accuracy). The hinge keeps rotation-invariance
-and rest-exactness at the price of the line search; the linearized KL element buys closed-form
-placement, a richer (rank-3, Poisson-coupled) operator, and a proper bending patch test at the price
-of the linearization.
+\paragraph{The bargain.}
+The fixed bending quadric is a \emph{linearization}: exact for a flat / developable rest patch (where $\kappa=L\mathbf x$ is truly linear), approximate for curved rest or large collapse moves, and not rotation-invariant under large deformation---the same trade QEM makes by freezing its planes, and the same trade caveat~(i) already names (freeze the reference for an approximate quadratic, or re-evaluate at candidates for accuracy).
+The hinge keeps rotation-invariance and rest-exactness at the price of the line search; the linearized KL element buys closed-form placement, a richer (rank-3, Poisson-coupled) operator, and a proper bending patch test at the price of the linearization.
 
 \paragraph{Concrete experiments.}
 \begin{enumerate}
-  \item Implement a per-triangle (or quadratic-bending) curvature operator $B_b$ and form
-        $Q_{\text{bend}}=B_b^\top D_b B_b$; verify a \emph{bending patch test}---under a
-        constant-curvature probe the homogenized $G_b$ matches the analytic plate stiffness, with
-        the rigid and constant-strain modes in its null space.
-  \item Project $B_b$ onto the curvature probe and confirm $G_b$ is rank $3$ (vs the hinge's rank
-        $1$) on the crease demo; compare which features each preserves.
-  \item Once $Q_{\text{bend}}$ is available, swap the bending line search for the closed-form
-        $\mathbf x^\star=-A^{-1}\mathbf b$ and measure the fidelity / speed trade against the current
-        re-evaluated, line-searched hinge cost.
+  \item Implement a per-triangle (or quadratic-bending) curvature operator $B_b$ and form $Q_{\text{bend}}=B_b^\top D_b B_b$; verify a \emph{bending patch test}---under a constant-curvature probe the homogenized $G_b$ matches the analytic plate stiffness, with the rigid and constant-strain modes in its null space.
+  \item Project $B_b$ onto the curvature probe and confirm $G_b$ is rank $3$ (vs the hinge's rank $1$) on the crease demo; compare which features each preserves.
+  \item Once $Q_{\text{bend}}$ is available, swap the bending line search for the closed-form $\mathbf x^\star=-A^{-1}\mathbf b$ and measure the fidelity / speed trade against the current re-evaluated, line-searched hinge cost.
 \end{enumerate}
+
+
+\subsection{Driving the fine mesh from the coarse proxy (skinning)}
+
+Decimation delivers a coarse proxy of a few hundred DOFs, cheap to time-step (mass--spring, PBD, or a reduced FEM).
+But the asset we must \emph{display} is the original fine mesh.
+We therefore need a rule that converts the proxy's motion each frame into the fine mesh's motion---a coarse$\to$fine \textbf{prolongation}, what graphics calls a \textbf{skinning map}.
+The payoff of the whole development is that we have \emph{already built} the right map: it is the harmonic extension $S=-K_{ee}^{-1}K_{er}$ of the Schur-complement section, now spanning the entire fine--coarse gap rather than a single collapse.
+\textbf{The operator that priced the collapses also drives the playback.}
+
+\paragraph{Linear blend skinning, and where the weights come from.}
+In linear blend skinning (LBS) each fine vertex follows a weighted average of a few \textbf{handles}---here the surviving proxy vertices.
+If handle $k$ displaces by $\mathbf d_k$, fine vertex $i$ displaces by
+\begin{equation}
+  \mathbf d_i^{\text{fine}} = \sum_k w_{ik}\,\mathbf d_k,
+  \qquad \sum_k w_{ik}=1\ \ (\text{partition of unity}).
+\end{equation}
+The row-sum condition guarantees that a uniform handle translation $\mathbf t$ reproduces as a uniform $\mathbf t$ on the fine mesh---no shrink, no drift.
+The entire content of a skinning scheme is \emph{where the weights $w_{ik}$ come from}.
+Painted by hand (artists) or inverse-distance to nearby handles (geometric) are the usual answers; ours is to \textbf{read them off the same elastic operator $K$ that drove the decimation.}
+
+\paragraph{The weights are the harmonic extension $S$.}
+Partition the fine DOFs exactly as in the Schur section, but at global scale: \emph{retained} $r$ = the surviving handles (the whole proxy), \emph{eliminated} $e$ = every other fine vertex---now eliminated \emph{simultaneously} rather than one collapse at a time.
+Pin the handles at the proxy's displacements $\mathbf d_r$ and let the interior settle into the lowest-energy shape (a rubber sheet tacked at the handles).
+Blocking $E=\tfrac12\mathbf d^\top K\mathbf d$,
+\begin{equation}
+  E=\tfrac12\begin{pmatrix}\mathbf d_e\\\mathbf d_r\end{pmatrix}^{\!\top}
+    \begin{pmatrix}K_{ee}&K_{er}\\K_{re}&K_{rr}\end{pmatrix}
+    \begin{pmatrix}\mathbf d_e\\\mathbf d_r\end{pmatrix},
+  \qquad
+  \frac{\partial E}{\partial\mathbf d_e}=K_{ee}\mathbf d_e+K_{er}\mathbf d_r=0,
+\end{equation}
+so $\mathbf d_e=-K_{ee}^{-1}K_{er}\mathbf d_r$, and stacking the handle identity gives the full map (write $S_e:=-K_{ee}^{-1}K_{er}$ for the interior block)
+\begin{equation}
+  \mathbf d^{\text{fine}}=S\,\mathbf d_r,\qquad
+  S=\begin{bmatrix}I\\[2pt]S_e\end{bmatrix}
+   =\begin{bmatrix}I\\[2pt]-K_{ee}^{-1}K_{er}\end{bmatrix}
+  \begin{array}{l}\ \leftarrow\text{handle rows}\\[2pt]
+                  \ \leftarrow\text{interior}=\text{skinning}\end{array}
+\end{equation}
+The rows of $-K_{ee}^{-1}K_{er}$ \emph{are} the weights, in closed form from the material---no painting, no fitting.
+This is one object under three names: the \textbf{harmonic extension} (for the pure Laplacian energy it is literally $\Delta u=0$ with the handles as boundary data), \textbf{static condensation / Guyan reduction} (the Schur complement of $K_{ee}$), and the \textbf{Craig--Bampton constraint modes}.
+Its Galerkin product is precisely the condensed proxy stiffness of the Schur section,
+\begin{equation}
+  K_c=S^\top K\,S=\widehat K_{rr}=K_{rr}-K_{re}K_{ee}^{-1}K_{er}.
+\end{equation}
+
+\paragraph{Tiny example: the three-node chain.}
+Reuse $A,m,B$ at $x=0,1,2$ with unit springs, $K=\left(\begin{smallmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{smallmatrix}\right)$.
+Take the ends as handles ($r=\{A,B\}$) and eliminate the middle ($e=\{m\}$): $K_{ee}=2$, $K_{er}=(-1,\,-1)$, so
+\begin{equation}
+  S_e=-K_{ee}^{-1}K_{er}=-\tfrac12(-1,\,-1)=(\tfrac12,\,\tfrac12),
+  \qquad d_m=\tfrac12 d_A+\tfrac12 d_B.
+\end{equation}
+The interior node sits at the \emph{average} of the handles: discrete harmonic extension is linear interpolation, weights $(\tfrac12,\tfrac12)$ summing to one.
+A richer $K$ spreads each interior vertex's weights over more handles and biases them toward the stiff directions, but the picture is unchanged---every interior vertex rides the energy-minimizing blend of the handles.
+(This is the same chain whose $G=V^\top KV$ squeezed to the single stretch number ``$2$'' earlier; here the same $K$ is condensed onto the endpoints instead of projected onto a probe.)
+
+\paragraph{Rigid reproduction and partition of unity.}
+$K$ annihilates global translations and infinitesimal rotations (zero energy).
+For such handle data the energy-minimizing extension \emph{is} that global mode (it attains zero energy and matches the handles), so $S$ reproduces it exactly.
+In particular a uniform translation forces $\sum_k S_{[i,k]}=I_3$ on every $3\times3$ row-block---which \emph{is} the partition of unity in block form.
+
+\paragraph{Full $3\times3$ block vs scalar LBS.}
+$S\in\mathbb R^{3n\times3n_r}$ ($n$ fine vertices, $n_r$ handles) is a grid of $3\times3$ blocks $S_{[i,k]}$ (the $x/y/z$ axes couple through $K$).
+Two ways to apply it:
+\begin{itemize}
+  \item \textbf{Full block:} $\mathbf d_i^{\text{fine}}=\sum_k S_{[i,k]}\mathbf d_k$.
+        The \emph{off-diagonal} entries let a handle's $x$-motion induce $y/z$ motion at a fine vertex---the coupling that lets a \emph{linear} map mimic rotation.
+  \item \textbf{Scalar LBS:} collapse each block to its mean diagonal $w_{ik}=\tfrac13\operatorname{tr}S_{[i,k]}$ and apply it identically to $x/y/z$.
+        Since $\sum_k S_{[i,k]}=I_3$, $\sum_k w_{ik}=\tfrac13\operatorname{tr}I_3=1$: the partition of unity survives.
+        This is textbook one-weight-per-influence LBS---what game engines and our sister tool \texttt{proxy-asset-gen} consume---simpler and sparser, but \emph{translation only} (no rotation coupling).
+\end{itemize}
+
+\paragraph{Three ways the linear map fails, and the fixes.}
+Driven by a real swinging sim, the naive ``full block, pinned handles'' map looks wrong for three distinct reasons.
+
+\emph{(1) Drift.}
+Decimation slid each surviving vertex to a stiffness-\emph{optimal} rest $\mathbf C_k$, generally not the original fine location $\mathbf F_{\sigma(k)}$ of the vertex it descends from (skirt: mean drift ${\sim}1.4\times$ edge length, max ${\sim}5\times$; ${\sim}45\%$ of handles drift past the gap to their nearest neighbor).
+But the handle rows of $S$ are the identity---they silently assume handle $k$ sits \emph{on} $\mathbf F_{\sigma(k)}$.
+A handle translation still transfers perfectly; a handle rotation transfers with error $\sim(\text{drift})\times(\text{angle})$.
+
+\emph{(2) Finite rotation read as strain.}
+$K$ is the Hessian at the \emph{rest} pose---a \textbf{linearized} operator.
+Feed it the displacement of a finite rotation $R$, $\mathbf u(\mathbf x)=(R-I)\mathbf x$, and the linear strain it perceives is
+\begin{equation}
+  \varepsilon=\operatorname{sym}(R-I)=\tfrac12(R+R^\top)-I=(\cos\theta-1)\,\Pi
+  \approx-\tfrac12\theta^2\,\Pi,
+\end{equation}
+with $\Pi$ the projector onto the rotation plane: a \emph{spurious} $O(\theta^2)$ compression.
+Built from this $K$, the harmonic map cannot tell the apparent strain from a real one, so its reconstruction of a finite rotation is wrong by $O(\theta^2)$ ($\approx14\%$ at $30^\circ$, matching the measured $18\%$).
+The dual symptom, if one drives with the \emph{infinitesimal} rotation $\mathbf u=\theta(\hat{\mathbf a}\times\mathbf x)$ instead, is inflation: $\lvert\mathbf x+\mathbf u\rvert=r\sqrt{1+\theta^2}$.
+(Scalar LBS is worse---being translation-only it cannot rotate at all.)
+\textbf{Fix---co-rotational LBS.}
+Keep the operator weights, but hand each handle an explicit \emph{finite} rotation $R_k$ recovered from how its coarse $1$-ring deformed, by polar decomposition (the shape-matching / ARAP estimate).
+Form the $3\times3$ cross-covariance of current vs.\ rest ring edges and take its rotation factor,
+\begin{align*}
+  J_k=\sum_{j\in\mathcal N(k)}(\mathbf X_j-\mathbf X_k)(\mathbf C_j-\mathbf C_k)^\top
+      =U\Sigma V^\top, \\
+  R_k=U\operatorname{diag}\!\big(1,1,\det(UV^\top)\big)V^\top,
+\end{align*}
+the $\det$ factor forbidding a reflection.
+Reconstruct with the rotation applied to the rigid offset:
+\begin{equation}
+  \mathbf x_i^{\text{fine}}=\sum_k w_{ik}\big[\,\mathbf X_k+R_k(\mathbf F_i-\mathbf C_k)\,\big].
+\end{equation}
+A finite rotation is now exact \emph{and} drift is absorbed: under a global rigid move $\mathbf X_k=R\mathbf C_k+\mathbf t$ (so $R_k=R$),
+\begin{equation}
+  \mathbf x_i^{\text{fine}}
+   =\sum_k w_{ik}\big[R\mathbf C_k+\mathbf t+R(\mathbf F_i-\mathbf C_k)\big]
+   =\sum_k w_{ik}\big[R\mathbf F_i+\mathbf t\big]=R\mathbf F_i+\mathbf t,
+\end{equation}
+exactly, for \emph{any} angle and \emph{any} drift (the last step is the partition of unity).
+This is co-rotational FEM (M\"uller) / ARAP (Sorkine): factor out the large rotation, leave only the genuinely small elastic part for the linear operator.
+Problems~(1) and~(2) are thus the \emph{same} defect with the \emph{same} fix.
+The lesson: operator-faithful weights and visually-good motion are \emph{not} mutually exclusive---the weights carry the mechanics (and the Craig--Bampton story below), the per-handle $R_k$ carries the large rotation.
+Diagnostic: under a synthetic $30^\circ$ proxy tilt, co-rotational reproduces it to ${\sim}0$, the full block errs $18\%$, scalar $17$--$25\%$.
+
+\emph{(3) Kinks at the handles.}
+Exact interpolation (identity handle rows) pins each fine handle vertex onto its faceted, drifted proxy vertex.
+Minimizing $\int|\nabla u|^2$ through a \emph{point} constraint is the operator's Green's function---$\log r$ in 2D, whose gradient $\sim1/r$ \emph{diverges}: a visible gradient cusp at every handle (the 1D twin is the $|x|$ kink of $\int|u'|^2$ pinned at a point).
+Two remedies:
+\textbf{More bending (\texttt{-{}-smooth})---does not fix it.} A thin-plate term $\int|\Delta u|^2$ is $C^1$ and smooths the surface \emph{between} handles, but the cusp comes from the \emph{hard constraint}; flattening the interior only makes the pinned handle poke out more.
+Pure biharmonic removes the cusp but its Green's function $r^2\log r$ \emph{overshoots} (rings, leaves $[0,1]$)---exactly why Bounded Biharmonic Weights add inequality constraints.
+\textbf{Soft handles (\texttt{-{}-relax})---the fix.}
+Stop interpolating; attach a spring.
+Replace the hard constraint $P_h\mathbf d=\mathbf d_{\text{proxy}}$ (selector $P_h$ picking the handle DOFs) by a penalty,
+\begin{equation}
+\min_{\mathbf d}\ \tfrac12\mathbf d^\top K\mathbf d
+  +\tfrac\lambda2\big\|P_h\mathbf d-\mathbf d_{\text{proxy}}\big\|^2
+\ \Longrightarrow\ (K+\lambda P_h^\top P_h)\,\mathbf d=\lambda P_h^\top\mathbf d_{\text{proxy}},
+\end{equation}
+i.e.\ $S_{\text{soft}}=\lambda\,(K+\lambda D_h)^{-1}P_h^\top$ with $D_h=P_h^\top P_h$ the diagonal handle-DOF selector.
+As $\lambda\to\infty$ this recovers the hard interpolant (cusp returns); at finite $\lambda$ the handle is pulled \emph{toward} the proxy yet free to relax into the smooth surface, turning the cusp into a gentle bump.
+One knob $\lambda=\operatorname{median}(\operatorname{diag}K)/\texttt{relax}$.
+Measured handle-roughness (graph-Laplacian energy at handles $\div$ mesh average; $1.0=$ no kink): co-rotational drops $1.77\to1.17$ at $\texttt{relax}=20$, no overshoot, rigid motion still exact.
+
