@@ -73,7 +73,10 @@ def get_lbs(mesh, n_handles, stem, bending_weight=1.0, decim_thickness=DECIM_THI
                    survivor -> piecewise-constant), cousin of the spectral restriction;
         "geom"  -- stiffness-free mean-value coordinates over the 1-ring (Floater).
     The collapse sequence is identical for all, so survivors/coarse are shared.
-    Returns (survivors, coarse_mesh, {"local":.., "edge":.., "geom":..})."""
+    Returns (survivors, coarse_mesh, {"local":.., "edge":.., "geom":..}).
+
+    The coarse proxy keeps its stiffness-optimal (drifted) rest positions; co-rotational
+    LBS absorbs the rest-to-anchor drift, so there is no snap-to-anchor step."""
     probe = "curvature" if bending_weight > 0.0 else "affine"
     base = os.path.join(
         cache_dir,

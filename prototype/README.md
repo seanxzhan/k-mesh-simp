@@ -10,6 +10,12 @@ prototype/
   viz_costs.py           polyscope viz of the cost fields + headless --smoke validation
   simplify_mechanics.py  greedy edge-collapse decimation driven by the mechanical cost
   viz_simplify.py        compare mechanical vs QEM decimation (polyscope + --smoke)
+
+  --- skinning: drive the high-res "visual" mesh from the coarse proxy sim ---
+  harmonic_skinning.py   the harmonic prolongation  S = -K_ee^{-1} K_er  (+ geometric baseline)
+  viz_lbs.py             four decimation-time skinning maps, painted + driven (--weights)
+  eval_sim_harmonic.py   full pipeline: PBD-sim proxy -> drive fine mesh (corotational, --relax)
+  check_drift.py         quantify placement drift / proximity scrambling of the id-correspondence
 ```
 
 ## Run
@@ -137,6 +143,220 @@ min_area `1.3e-3`, max aspect `1.8`) where **membrane-only flattens it and produ
 zero-area faces**. Note the physical fact remains that for a thin shell bending stiffness
 is `~t²` of membrane — normalization is precisely what lets you weight bending up to where
 it influences the decimation regardless.
+
+## Skinning — driving the high-res mesh from the coarse proxy
+
+Decimation gives us a **coarse proxy** (~128 verts) that is cheap to simulate (PBD). But we
+still want to *display* the original **fine mesh** (~1300 verts). So we need a rule that
+takes the proxy's motion each frame and produces the fine mesh's motion. That rule is a
+**skinning map** (in multigrid/FEM language, a **prolongation** — an operator that
+"prolongs" a coarse field onto a fine one).
+
+This section explains, from the ground up, the map we use, the three things that went wrong
+with the naive version, and the fixes. **The recipe we settled on:** the harmonic map
+`S = -K_ee⁻¹ K_er`, applied as **co-rotational LBS** (per-handle rotation) with **soft-handle
+smoothing** (`--relax`). Everything here is exercised by `eval_sim_harmonic.py`.
+
+### Background: Linear Blend Skinning, and where the weights come from
+
+If you've seen character rigging, you've seen **Linear Blend Skinning (LBS)**: each mesh
+vertex follows a weighted average of a few "bones". Here the "bones" are the coarse proxy
+vertices, which we call **handles**. If handle `k` moves by displacement `d_k`, then fine
+vertex `i` moves by
+
+```
+d_fine[i] = Σ_k  w[i,k] · d_k ,        with   Σ_k w[i,k] = 1   ("partition of unity")
+```
+
+The weights `w[i,k]` say how strongly handle `k` drags vertex `i`. The partition-of-unity
+condition (rows sum to 1) guarantees that if *all* handles translate by the same `t`, the
+whole fine mesh translates by `t` — no shrinking or drifting.
+
+The entire question is: **where do the weights come from?** Common answers are *paint them by
+hand* (artists) or *inverse distance to the nearest handles* (geometric). Our pitch is
+different: **read them off the physics** — the same elastic operator `K` that drove the
+decimation.
+
+### The harmonic map  S = -K_ee⁻¹ K_er  (energy-minimizing skinning)
+
+**Intuition first.** Picture the mesh as a web of springs (edge springs that resist
+stretching + hinge springs that resist bending). If you displace all vertices by a stacked
+vector `d`, the stored elastic energy is
+
+```
+E(d) = ½ dᵀ K d
+```
+
+`K` is the **stiffness matrix**: it encodes how hard each deformation is. Stiff directions
+cost lots of energy; floppy directions cost little. (Rigidly translating or rotating the
+*whole* mesh costs **zero** energy — those are `K`'s null space.)
+
+Now **pin the handles** at prescribed displacements and let every other vertex settle into
+the **lowest-energy shape** consistent with those pins — exactly like a rubber sheet tacked
+down at a few points sagging into its most relaxed configuration. That relaxed shape *is* our
+skinning. To compute it, split the vertices into **retained** handles `r` and **eliminated**
+interior `e`, and block the matrix:
+
+```
+E = ½ [d_e]ᵀ [K_ee  K_er] [d_e]
+       [d_r]  [K_re  K_rr] [d_r]
+```
+
+Minimize over the free vertices `d_e` (set the derivative to zero):
+
+```
+∂E/∂d_e = K_ee d_e + K_er d_r = 0     ⟹     d_e = -K_ee⁻¹ K_er d_r
+```
+
+Stack the identity for the handles themselves and you get the full coarse→fine map:
+
+```
+d_fine = S d_coarse ,      S = [        I        ]   ← handle rows (each handle follows itself)
+                               [ -K_ee⁻¹ K_er ]      ← interior rows = the skinning weights
+```
+
+The rows of `-K_ee⁻¹ K_er` **are** the skinning weights, in closed form, straight from the
+material — no painting, no fitting to animation.
+
+**Two names for the same object** (useful for reading papers):
+- **Harmonic extension.** For the simplest energy (`∫|∇u|²`, the membrane/Laplacian energy),
+  this is literally solving Laplace's equation `Δu = 0` with the handles as boundary values —
+  a *harmonic* function. Our `K` is a richer mechanical energy, but the idea is identical.
+- **Schur complement / static condensation (Guyan reduction).** Eliminating the interior
+  DOFs and keeping only the handles is the Schur complement of `K_ee`; structural engineers
+  call it static condensation. It preserves the *static* stiffness exactly while shrinking
+  the DOF count.
+
+Because `K` annihilates rigid motion, `S` reproduces a rigid motion of the handles *exactly*
+(this is why the weights sum to 1). `harmonic_skinning.py` builds `S` and checks this; on
+elastic test deformations it beats an inverse-distance kNN baseline, because it is optimal in
+the *elastic-energy* norm — the regime a simulated proxy actually lives in.
+
+### Two ways to apply the map: full 3×3 block vs scalar LBS
+
+`S` is really a `3n × 3n_coarse` matrix of small **3×3 blocks** `S_block[i,k]` (x/y/z are
+coupled through `K`). There are two ways to use it:
+
+- **Full 3×3 block:** `d_fine[i] = Σ_k S_block[i,k] · d_k`. The *off-diagonal* block entries
+  let a handle's x-motion induce some y/z motion in a fine vertex — and that cross-coupling
+  is exactly what lets the map represent **rotation**.
+- **Scalar LBS:** collapse each block to a single number `w[i,k] = ⅓·tr(S_block[i,k])` (rows
+  still sum to 1) and apply it identically to x/y/z. This is the *textbook* LBS form — one
+  weight per influence — and it is what game engines and our sister project `proxy-asset-gen`
+  consume. Simpler and sparser, but **translation-only**: no rotation coupling.
+
+`prolongation_scalar_weights()` does the trace reduction; `viz_lbs.py` paints both and shows
+the deformation each produces. (Our scalar `W` is ~90% dense but only ~3.2 *effective*
+handles per vertex, so a top-k≈8 sparsification matches the engine/`proxy-asset-gen` format
+with little loss.)
+
+### Three things that go wrong — and the fixes
+
+The naive "full block, pinned handles" map looks bad under a real swinging sim. There are
+three distinct causes; each has a clean, controlled fix.
+
+**1. Drift (the proxy isn't where the original vertex was).** Our decimation slides each
+surviving coarse vertex to a *stiffness-optimal* rest position `C[k]`, which is **not** the
+original location `F[survivors[k]]` of the fine vertex it came from (measured drift on the
+skirt: ~1.4× edge length on average, up to ~5×). But the map's handle rows are the *identity*
+— they silently assume handle `k` sits exactly on fine vertex `survivors[k]`. So a handle
+*translation* still transfers perfectly, but a handle *rotation* transfers with an error
+proportional to `drift × angle`. (`check_drift.py` quantifies this; ~45% of handles drift
+farther than the gap to their nearest neighbor.)
+
+**2. Rotation → inflation.** `K` is the stiffness at the *rest* pose — a **linearized**
+(small-displacement) operator. Feed a *finite* rotation through a linear operator and it
+reads as a *stretch*: a point at radius `r` rotated by angle `θ` is sent to `r·√(1+θ²)` — it
+**inflates** (~40% at θ ≈ 1 rad). So a skirt swinging 30–60° balloons. (Scalar LBS is worse:
+being translation-only, it cannot rotate at all.)
+
+> **Fix — co-rotational LBS.** Keep the operator weights, but give each handle a *finite*
+> rotation `R_k`, estimated from how its coarse 1-ring deformed (the **ARAP / polar-
+> decomposition** trick: SVD of the rest-vs-current edge cross-covariance). Apply
+> ```
+> x_fine[i] = Σ_k  w[i,k] · [ X_k + R_k (F_i − C_k) ]
+> ```
+> Now the rotation is applied *exactly* (no inflation), and the drift offset `(F_i − C_k)` is
+> carried *rigidly* under `R_k`, so drift stops scrambling things. Verified by a built-in
+> diagnostic: under a synthetic 30° proxy tilt, co-rotational reproduces it to **~0** error,
+> while the full block is off by **18%** and scalar LBS by **17–25%**.
+>
+> The lesson: **operator-faithful weights and visually-good motion are NOT mutually
+> exclusive.** The conflict was only that a rest-pose *linear* operator cannot represent big
+> rotation. Co-rotational *decouples* the two jobs — the operator decides *which handles
+> influence a vertex* (the weights, which carry the mechanics); the per-handle rotation
+> handles the *large rotation* (the visuals).
+
+**3. Kinks at the handles.** The harmonic map *interpolates*: its handle rows are the
+identity, so each fine handle vertex is pinned **exactly** onto its (faceted, drifted) proxy
+vertex. A hard point constraint that pokes off the smooth trend creates a **gradient cusp** —
+a visible kink — right at every handle. (This is the classic signature of a membrane/Laplacian
+interpolant: minimizing `∫|∇u|²` through point constraints leaves a cusp at each point, like
+`|x|` in 1D or `log r` in 2D.) Two attempts:
+
+- **More bending (`--smooth`) — tried, doesn't fix it.** A *bending* (thin-plate) energy
+  `∫|Δu|²` is C¹-smooth, so blending bending into `K` smooths the surface *between* handles.
+  But the cusp comes from a *hard constraint*, not from the interior operator — and making the
+  interior flatter just makes the pinned handle poke out *more* (measured: it can make things
+  slightly worse). Pure bending *does* remove the cusp but then **overshoots** (rings, goes
+  negative) — which is exactly why "Bounded Biharmonic Weights" need extra inequality
+  constraints.
+- **Soft handles (`--relax`) — this is the fix.** Stop pinning. Instead of forcing
+  `d_fine[handle] = d_proxy`, attach a *spring* and minimize
+  ```
+  ½ dᵀ K d  +  (λ/2) · |d_handle − d_proxy|²
+  ```
+  giving `S = λ (K + λ D_h)⁻¹ P_hᵀ` (`D_h` = handle-DOF selector). The handle is now pulled
+  *toward* the proxy but allowed to relax into the smooth surface, so the cusp becomes a gentle
+  bump. One knob `λ` (exposed as `--relax R`, `λ = median(diag K)/R`): larger = softer =
+  smoother, at the cost of a little handle "slip". Measured handle-roughness (graph-Laplacian
+  energy at handles ÷ mesh average; 1.0 = no kink): co-rotational drops **1.77 → 1.17** at
+  `R=20`, with **no overshoot** and rigid motion still reproduced exactly.
+
+`eval_sim_harmonic.py` prints both diagnostics every run — the **finite-rotation fidelity**
+table (problem 2) and the **handle-kink roughness** ratio (problem 3) — so you can tune the
+knobs against numbers, not just eyeballs.
+
+### The recipe we settled on
+
+```
+  S = -K_ee⁻¹ K_er                  harmonic prolongation (weights from the material)
+   → w = ⅓·tr(S_block)              scalar LBS weights (engine-friendly form)
+   → co-rotational application       per-handle R_k  → fixes rotation + drift  (problem 1,2)
+   → soft handles (--relax)          approximate, don't pin → fixes kinks      (problem 3)
+```
+
+```bash
+python prototype/eval_sim_harmonic.py --deform corotational --relax 20   # the settled recipe
+python prototype/eval_sim_harmonic.py                                     # full | scalar | corotational
+python prototype/eval_sim_harmonic.py --smoke --frames 12 --settle 8      # headless checks + diagnostics
+python prototype/viz_lbs.py                                               # paint the four decimation-time maps
+```
+
+### What we tried (and kept / rejected)
+
+| Approach | Idea | Verdict |
+|---|---|---|
+| geometric kNN weights | bind to nearest handles by inverse distance | baseline; ignores the material |
+| **global harmonic `S` (full 3×3)** | one-shot energy-minimizing extension | smooth & reproduces rotation *in theory*; drift + linearization hurt in practice |
+| local harmonic (per-collapse) | accumulate `-K_vv⁻¹K_vj` during each collapse | bounded support; an approximation to the global Schur extension |
+| edge blend / mean-value coords | stiffness-free baselines (`viz_lbs --weights edge/geom`) | piecewise-constant / purely geometric reference points |
+| **scalar LBS** (`⅓·tr`) | engine-standard one-weight-per-influence form | simplest, sparsifiable; translation-only |
+| **co-rotational** | per-handle finite rotation `R_k` | ✅ **kept** — fixes rotation & drift |
+| `--smooth` (more bending) | bending-dominated operator → C¹ interior | ✗ rejected for kinks — can't soften a hard constraint (and pure bending overshoots) |
+| **soft handles `--relax`** | approximate the proxy, don't pin it | ✅ **kept** — fixes the handle kinks, no overshoot |
+| snap coarse→fine | move the proxy onto its fine anchors to zero the drift | ✗ rejected & removed — destroys the stiffness-optimal positions; co-rotational *absorbs* the drift instead |
+
+### References (for the curious student)
+
+- *Schur complement / static condensation:* Guyan, "Reduction of stiffness and mass
+  matrices" (1965).
+- *Harmonic & biharmonic skinning weights:* Jacobson, Baran, Popović, Sorkine, **"Bounded
+  Biharmonic Weights for Real-Time Deformation"** (SIGGRAPH 2011) — why biharmonic is smooth
+  but needs bounds to avoid overshoot.
+- *As-Rigid-As-Possible / polar decomposition:* Sorkine & Alexa, "As-Rigid-As-Possible Surface
+  Modeling" (2007) — the per-handle rotation estimate.
+- *Co-rotational FEM:* Müller & Gross, "Interactive Virtual Materials" (2004).
 
 ## ⚠️ kms.stiffness bugs found (and fixed here)
 
